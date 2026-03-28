@@ -10,6 +10,7 @@ SERVICES = {
     "user": ("services/user", 8002),
     "event": ("services/event", 8003),
     "ticketing": ("services/ticketing", 8004),
+    "notification": ("services/notification", 8006),
     "agents": ("agents", 8010),
 }
 
@@ -32,12 +33,27 @@ def run_shadow_mode():
         print(f"🚀 Launching {name.upper()} on port {port}...")
         service_cwd = os.path.join(BASE_DIR, rel_path)
         
+        # Project Root (absolute parent of backend/)
+        PROJECT_ROOT = os.path.dirname(os.path.abspath(BASE_DIR))
+        
         # Inject Mock Env Vars
         env = os.environ.copy()
         env["DATABASE_URL"] = db_url
         env["MOCK_KAFKA"] = "TRUE"
         env["REDIS_HOST"] = "MOCK" # Services should check this for local in-memory redis
-        env["PYTHONPATH"] = BASE_DIR # Ensure 'shared' is importable
+        
+        # Inject required Pydantic fields (Satisfy validation in Shadow Mode)
+        env["JWT_SECRET"] = "dev_secret_key_64_bits_long_minimum_integrity"
+        env["STRIPE_PUBLISHABLE_KEY"] = "pk_test_mock"
+        env["STRIPE_SECRET_KEY"] = "sk_test_mock"
+        env["STRIPE_WEBHOOK_SECRET"] = "whsec_mock"
+        
+        # Fixing PYTHONPATH so each service can find its own 'app' module
+        # and also access 'backend.shared' from the project root.
+        env["PYTHONPATH"] = f"{PROJECT_ROOT};{service_cwd}" if os.name == 'nt' else f"{PROJECT_ROOT}:{service_cwd}"
+        
+        # Log injection for debugging
+        print(f"🚀 Starting {name} on port {port}...")
         
         # Build Command (using the detected py/python executable)
         if name == "agents":

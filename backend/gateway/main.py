@@ -33,6 +33,7 @@ SERVICE_MAP: Dict[str, str] = {
     "user": "http://localhost:8002",
     "event": "http://localhost:8003",
     "ticket": "http://localhost:8004",
+    "ticketing": "http://localhost:8004",
     "payment": "http://localhost:8005",
     "notification": "http://localhost:8006",
     "chat": "http://localhost:8007",

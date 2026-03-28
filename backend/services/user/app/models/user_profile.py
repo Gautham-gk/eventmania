@@ -12,7 +12,7 @@ class UserProfile(Base):
     full_name = Column(String(200), nullable=False)
     bio = Column(Text, nullable=True)
     avatar_url = Column(String(512), nullable=True)
-    interests = Column(ARRAY(String), default=[]) # e.g. ["tech", "ai"]
+    interests = Column(JSON, default=[]) # e.g. ["tech", "ai"]
     settings = Column(JSON, default={}) # e.g. {"notifications": True}
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

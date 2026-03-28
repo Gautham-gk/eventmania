@@ -13,7 +13,10 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger(__name__)
 
 # Initialize Kafka Manager for events
-kafka_manager = KafkaManager(bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS)
+kafka_manager = KafkaManager(
+    bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS, 
+    client_id="auth-service-producer"
+)
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
@@ -46,7 +49,8 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
     
     # We'll handle starting/stopping the producer in the main lifecycle
     # but for now, we'll try sending the event directly
-    asyncio.create_task(kafka_manager.send_event("user.created", event_data))
+    import asyncio
+    asyncio.create_task(kafka_manager.send("user.created", event_data))
 
     return AuthResponse(msg="User registered successfully", user_id=new_user.id)
 

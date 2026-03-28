@@ -44,8 +44,11 @@ async def start_listening():
     """
     Starts the Kafka consumer for the User Service.
     """
-    kafka_manager = KafkaManager(bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS)
-    await kafka_manager.consume_events(
+    kafka_manager = KafkaManager(
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+        client_id="user-service-consumer"
+    )
+    await kafka_manager.consume(
         topic="user.created",
         group_id="user-service-group",
         callback=handle_user_created

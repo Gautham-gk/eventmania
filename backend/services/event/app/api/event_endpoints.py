@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.event import Event, EventStatus
 from app.schemas.event_schemas import EventCreate, EventOut, EventUpdate, EventSearch
+from typing import List, Optional
+from datetime import datetime
 from uuid import UUID
 from app.core.config import settings
 from backend.shared.kafka_utils import KafkaManager
@@ -14,7 +16,10 @@ router = APIRouter(prefix="/events", tags=["Event Management"])
 logger = logging.getLogger(__name__)
 
 # Initialize Kafka Manager for events
-kafka_manager = KafkaManager(bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS)
+kafka_manager = KafkaManager(
+    bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+    client_id="event-service-producer"
+)
 
 @router.post("/", response_model=EventOut, status_code=status.HTTP_201_CREATED)
 def create_event(event_in: EventCreate, db: Session = Depends(get_db)):
@@ -42,7 +47,7 @@ def create_event(event_in: EventCreate, db: Session = Depends(get_db)):
     }
     
     # Run publishing as a background task
-    asyncio.create_task(kafka_manager.send_event("event.created", event_data))
+    asyncio.create_task(kafka_manager.send("event.created", event_data))
 
     return new_event
 
