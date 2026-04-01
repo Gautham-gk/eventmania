@@ -37,11 +37,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         _passwordController.text,
       );
     } else {
-      // For registration, we'd call a registration method in AuthNotifier
-      // Mocking success for demo
-      success = await authNotifier.login(
+      success = await authNotifier.register(
         _emailController.text,
         _passwordController.text,
+        _nameController.text,
       );
     }
 
@@ -197,9 +196,22 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       ),
                       const SizedBox(height: 32),
                       
-                      _buildSocialButton('Continue with Gmail', Icons.mail_outline, const Color(0xFFDB4437)),
-                      _buildSocialButton('Continue with Apple', Icons.apple, Colors.black),
-                      _buildSocialButton('Continue with Facebook', Icons.facebook, const Color(0xFF1877F2)),
+                      _buildSocialButton(
+                        'Continue with Gmail', 
+                        Icons.mail_outline, 
+                        const Color(0xFFDB4437),
+                        () => ref.read(authProvider.notifier).socialLogin('google').then((success) {
+                          if (success && mounted) context.go('/');
+                        }),
+                      ),
+                      _buildSocialButton(
+                        'Continue with Facebook', 
+                        Icons.facebook, 
+                        const Color(0xFF1877F2),
+                        () => ref.read(authProvider.notifier).socialLogin('facebook').then((success) {
+                          if (success && mounted) context.go('/');
+                        }),
+                      ),
                     ],
                   ),
                 ),
@@ -241,12 +253,12 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     );
   }
 
-  Widget _buildSocialButton(String text, IconData icon, Color color) {
+  Widget _buildSocialButton(String text, IconData icon, Color color, VoidCallback onPressed) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: onPressed,
         icon: Icon(icon, color: color, size: 24),
         label: Text(text, style: GoogleFonts.outfit(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
         style: OutlinedButton.styleFrom(

@@ -29,16 +29,16 @@ app.add_middleware(
 
 # Service Map (Internal Docker bridge addresses if using Docker)
 SERVICE_MAP: Dict[str, str] = {
-    "auth": "http://localhost:8001",
-    "user": "http://localhost:8002",
-    "event": "http://localhost:8003",
-    "ticket": "http://localhost:8004",
-    "ticketing": "http://localhost:8004",
-    "payment": "http://localhost:8005",
-    "notification": "http://localhost:8006",
-    "chat": "http://localhost:8007",
-    "recommendation": "http://localhost:8008",
-    "review": "http://localhost:8009",
+    "auth": "http://localhost:8001/auth",
+    "user": "http://localhost:8002/users",
+    "event": "http://localhost:8003/events",
+    "ticket": "http://localhost:8004/tickets",
+    "ticketing": "http://localhost:8004/tickets",
+    "payment": "http://localhost:8005/payments",
+    "notification": "http://localhost:8006/notifications",
+    "chat": "http://localhost:8007/chat",
+    "recommendation": "http://localhost:8008/recommendations",
+    "review": "http://localhost:8009/reviews",
 }
 
 # Shared HTTP Client for Proxying

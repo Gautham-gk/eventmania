@@ -69,6 +69,54 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return false;
   }
 
+  Future<bool> register(String email, String password, String fullName) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final response = await authApi.post('/auth/register', data: {
+        'email': email,
+        'password': password,
+        'full_name': fullName,
+        'role': 'user'
+      });
+
+      if (response.statusCode == 201) {
+        // Success registration, now login
+        return await login(email, password);
+      }
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.response?.data['detail'] ?? e.message);
+    }
+    return false;
+  }
+
+  Future<bool> socialLogin(String provider) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      // Mocking provider social result for now
+      final email = "mock_$provider@eventmind.ai";
+      final name = "Social User ($provider)";
+      
+      final response = await authApi.post('/auth/social-login', data: {
+        'email': email,
+        'full_name': social_in?.fullName ?? name,
+        'provider': provider,
+        'provider_id': 'mock_${provider}_id',
+        'id_token': 'mock_token',
+      });
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        await storage.write(key: 'access_token', value: data['access_token']);
+        await storage.write(key: 'refresh_token', value: data['refresh_token']);
+        state = state.copyWith(isAuthenticated: true, isLoading: false, userEmail: email);
+        return true;
+      }
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message);
+    }
+    return false;
+  }
+
   Future<void> logout() async {
     await storage.deleteAll();
     state = state.copyWith(isAuthenticated: false);

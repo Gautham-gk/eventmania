@@ -35,3 +35,10 @@ class UserMinOut(BaseModel):
 class AuthResponse(BaseModel):
     msg: str
     user_id: UUID
+
+class SocialLogin(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = "EventMind User"
+    provider: str
+    provider_id: str
+    id_token: Optional[str] = None

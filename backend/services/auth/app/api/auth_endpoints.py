@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user_credentials import UserCredentials, UserRole
-from app.schemas.auth_schemas import UserRegister, UserLogin, Token, AuthResponse, UserMinOut
+from app.schemas.auth_schemas import UserRegister, UserLogin, Token, AuthResponse, UserMinOut, SocialLogin
 from app.services.auth_service import AuthService
 from app.core.config import settings
 from backend.shared.kafka_utils import KafkaManager
@@ -74,6 +74,44 @@ def login_user(form_data: UserLogin, db: Session = Depends(get_db)):
         )
 
     # 3. Create tokens
+    access_token = AuthService.create_access_token(
+        data={"sub": str(user.id), "email": user.email, "role": str(user.role)}
+    )
+    refresh_token = AuthService.create_refresh_token(
+        data={"sub": str(user.id)}
+    )
+
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
+@router.post("/social-login", response_model=Token)
+def social_login(social_in: SocialLogin, db: Session = Depends(get_db)):
+    # 1. Fetch user by email
+    user = db.query(UserCredentials).filter(UserCredentials.email == social_in.email).first()
+    
+    if not user:
+        # Create new user if not exist (similar to register)
+        user = UserCredentials(
+            email=social_in.email,
+            hashed_password=AuthService.get_password_hash("SOCIAL_AUTH_PROVIDER_NO_PWD"),
+            role=UserRole.USER,
+            is_verified=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Publish UserCreated event for social user
+        event_data = {
+            "user_id": str(user.id),
+            "full_name": social_in.full_name,
+            "email": social_in.email,
+            "role": str(user.role),
+            "provider": social_in.provider
+        }
+        import asyncio
+        asyncio.create_task(kafka_manager.send("user.created", event_data))
+
+    # 2. Create tokens
     access_token = AuthService.create_access_token(
         data={"sub": str(user.id), "email": user.email, "role": str(user.role)}
     )

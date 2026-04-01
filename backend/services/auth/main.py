@@ -27,6 +27,11 @@ app.add_middleware(
 # Include Authentication Router
 app.include_router(auth_router)
 
+@app.on_event("startup")
+async def startup_event():
+    from app.api.auth_endpoints import kafka_manager
+    await kafka_manager.start()
+
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": settings.SERVICE_NAME}
