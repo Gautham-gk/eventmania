@@ -8,7 +8,7 @@ import type { City } from "@eventmind/store";
 import type { Community } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
 
-const GREEN = "#184E4A";
+const GREEN = "var(--brand-green)";
 
 const CATEGORIES = ["Technology", "Creative", "Business", "Summit", "Networking", "Gaming", "Health & Wellness", "Education", "Arts & Culture", "Sports", "Food & Drink", "Other"];
 const EVENT_TYPES = ["In-Person", "Online", "Hybrid"] as const;
@@ -169,7 +169,7 @@ export default function CreateEventPage() {
   const descMax = 1000;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
       <div className="px-12 py-10 max-w-3xl mx-auto">
@@ -178,15 +178,15 @@ export default function CreateEventPage() {
           <button
             onClick={() => router.back()}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-            style={{ border: "1px solid #E2DDD5", backgroundColor: "#F2EFEA" }}
+            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)" }}
           >
-            <svg className="w-4 h-4" style={{ color: "#6B7280" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
           </button>
           <div>
-            <h1 className="text-[28px] font-bold" style={{ color: "#111827" }}>Create New Event</h1>
-            <p className="text-sm" style={{ color: "#9CA3AF" }}>Fill in the details below to publish or save as draft.</p>
+            <h1 className="text-[28px] font-bold" style={{ color: "var(--brand-text)" }}>Create New Event</h1>
+            <p className="text-[18px]" style={{ color: "var(--brand-hint)" }}>Fill in the details below to publish or save as draft.</p>
           </div>
         </div>
 
@@ -219,7 +219,7 @@ export default function CreateEventPage() {
             </div>
 
             <FormField label="Event Type">
-              <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid #E2DDD5" }}>
+              <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--brand-border)" }}>
                 {EVENT_TYPES.map((t) => (
                   <button
                     key={t}
@@ -227,8 +227,8 @@ export default function CreateEventPage() {
                     onClick={() => setEventType(t)}
                     className="flex-1 py-3 text-sm font-medium transition-colors"
                     style={{
-                      backgroundColor: eventType === t ? GREEN : "#F2EFEA",
-                      color: eventType === t ? "#F2EFEA" : "#111827",
+                      backgroundColor: eventType === t ? GREEN : "var(--brand-surface)",
+                      color: eventType === t ? "var(--brand-on-green)" : "var(--brand-text)",
                     }}
                   >
                     {t}
@@ -258,9 +258,9 @@ export default function CreateEventPage() {
                       onClick={() => toggleAudience(a)}
                       className="px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"
                       style={{
-                        backgroundColor: selected ? GREEN : "#F2EFEA",
-                        color: selected ? "#F2EFEA" : "#374151",
-                        border: `1px solid ${selected ? GREEN : "#E2DDD5"}`,
+                        backgroundColor: selected ? GREEN : "var(--brand-surface)",
+                        color: selected ? "var(--brand-on-green)" : "var(--brand-text)",
+                        border: `1px solid ${selected ? GREEN : "var(--brand-border)"}`,
                       }}
                     >
                       {a}
@@ -368,7 +368,7 @@ export default function CreateEventPage() {
 
               <FormField label="Ticket Price (USD)" error={fieldErrors.price}>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: "#9CA3AF" }}>$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: "var(--brand-hint)" }}>$</span>
                   <input
                     type="number"
                     min="0"
@@ -389,8 +389,8 @@ export default function CreateEventPage() {
           {/* ── Community ── */}
           {community && (
             <Section title="Community">
-              <p className="text-sm" style={{ color: "#6B7280" }}>
-                You have a community called <span className="font-semibold" style={{ color: "#111827" }}>{community.name}</span>.
+              <p className="text-sm" style={{ color: "var(--brand-hint)" }}>
+                You have a community called <span className="font-semibold" style={{ color: "var(--brand-text)" }}>{community.name}</span>.
                 Adding this event to your community groups it with your other events on your community page.
               </p>
               <div className="flex items-center gap-3 mt-2">
@@ -399,9 +399,9 @@ export default function CreateEventPage() {
                   onClick={() => setCommunityId(communityId ? "" : community.id)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
                   style={{
-                    backgroundColor: communityId ? GREEN : "#F2EFEA",
-                    color: communityId ? "#F2EFEA" : "#374151",
-                    border: `1px solid ${communityId ? GREEN : "#E2DDD5"}`,
+                    backgroundColor: communityId ? GREEN : "var(--brand-surface)",
+                    color: communityId ? "var(--brand-on-green)" : "var(--brand-text)",
+                    border: `1px solid ${communityId ? GREEN : "var(--brand-border)"}`,
                   }}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -420,7 +420,7 @@ export default function CreateEventPage() {
 
           {/* Success */}
           {success && (
-            <div className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ color: GREEN, backgroundColor: "#F0F7F6" }}>
+            <div className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ color: GREEN, backgroundColor: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
@@ -435,7 +435,7 @@ export default function CreateEventPage() {
               disabled={isSubmitting || success}
               onClick={() => setSubmitMode("draft")}
               className="flex-1 py-4 rounded-2xl text-sm font-bold transition-colors disabled:opacity-50"
-              style={{ border: `2px solid ${GREEN}`, color: GREEN, backgroundColor: "#F2EFEA" }}
+              style={{ border: `2px solid ${GREEN}`, color: GREEN, backgroundColor: "var(--brand-bg)" }}
             >
               {isSubmitting && submitMode === "draft" ? "Saving…" : "Save as Draft"}
             </button>
@@ -444,12 +444,12 @@ export default function CreateEventPage() {
               type="submit"
               disabled={isSubmitting || success}
               onClick={() => setSubmitMode("publish")}
-              className="flex-[2] py-4 rounded-2xl text-[#F2EFEA] text-sm font-bold transition-colors disabled:opacity-50"
+              className="flex-[2] py-4 rounded-2xl text-[var(--brand-on-green)] text-sm font-bold transition-colors disabled:opacity-50"
               style={{ backgroundColor: GREEN }}
             >
               {isSubmitting && submitMode === "publish" ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-white" />
+                  <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--brand-on-green)]" />
                   Publishing…
                 </span>
               ) : "Publish Event"}
@@ -464,8 +464,8 @@ export default function CreateEventPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl p-8 space-y-6" style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}>
-      <h2 className="text-[18px] font-bold" style={{ color: "#111827" }}>{title}</h2>
+    <div className="rounded-2xl p-8 space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
+      <h2 className="text-[18px] font-bold" style={{ color: "var(--brand-text)" }}>{title}</h2>
       {children}
     </div>
   );
@@ -485,8 +485,8 @@ function FormField({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label className="text-sm font-semibold" style={{ color: "#111827" }}>{label}</label>
-        {hint && <span className="text-xs" style={{ color: "#9CA3AF" }}>{hint}</span>}
+        <label className="text-sm font-semibold" style={{ color: "var(--brand-text)" }}>{label}</label>
+        {hint && <span className="text-xs" style={{ color: "var(--brand-hint)" }}>{hint}</span>}
       </div>
       {children}
       {error && <p className="text-xs" style={{ color: "#EF4444" }}>{error}</p>}
@@ -497,9 +497,9 @@ function FormField({
 function inputCls(hasError: boolean): string {
   return (
     "w-full px-4 py-3 rounded-xl text-sm transition-colors " +
-    "placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 resize-none " +
+    "placeholder:text-[var(--brand-hint)] focus:outline-none focus:ring-2 resize-none " +
     (hasError
       ? "border border-red-400 bg-red-50 focus:ring-red-200"
-      : "border border-[#E2DDD5] bg-[#F2EFEA] text-[#111827] focus:ring-[#184E4A]/20 focus:border-[#184E4A]")
+      : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")
   );
 }

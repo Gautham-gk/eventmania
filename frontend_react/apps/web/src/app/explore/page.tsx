@@ -3,7 +3,7 @@
 import { Suspense, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { eventsApi, communitiesApi } from "@eventmind/api";
+import { eventsSource, communitiesSource } from "@/lib/data-source";
 import { useLocationStore, DEFAULT_CITY, CITIES, isOnlineCity } from "@eventmind/store";
 import type { City } from "@eventmind/store";
 import type { Event, Community } from "@eventmind/types";
@@ -12,7 +12,7 @@ import { EventCardItem } from "@/components/EventsCarousel";
 import { CommunityCardItem } from "@/components/CommunityCarousel";
 import { toCarouselEvent, toCommunityItem } from "@/lib/card-adapters";
 
-const GREEN = "#184E4A";
+const GREEN = "var(--brand-green)";
 
 const CATEGORIES = [
   "All",
@@ -179,13 +179,13 @@ function ExploreContent() {
 
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["explore-events", online, q, category, eventType, city.name, freeOnly, dateFrom, dateTo],
-    queryFn: () => eventsApi.search(buildEventParams()).then((r) => r.data),
+    queryFn: () => eventsSource.search(buildEventParams()).then((r) => r.data),
     enabled: showEvents,
   });
 
   const { data: communities, isLoading: communitiesLoading } = useQuery({
     queryKey: ["explore-communities", online, q, category, city.name],
-    queryFn: () => communitiesApi.search(buildCommunityParams()).then((r) => r.data),
+    queryFn: () => communitiesSource.search(buildCommunityParams()).then((r) => r.data),
     enabled: showCommunities,
   });
 
@@ -231,16 +231,16 @@ function ExploreContent() {
       : `${n} ${noun === "community" ? "communities" : noun + "s"}`;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
       <div className="px-4 sm:px-6 lg:px-12 pt-10 pb-4">
         {/* Page title + search */}
         <div className="flex flex-col gap-2 mb-6">
-          <h1 className="text-[32px] font-extrabold tracking-tight" style={{ color: "#111827" }}>
+          <h1 className="text-[32px] font-extrabold tracking-tight" style={{ color: "var(--brand-text)" }}>
             Explore
           </h1>
-          <p className="text-sm" style={{ color: "#6B7280" }}>
+          <p className="text-[18px]" style={{ color: "var(--brand-hint)" }}>
             Discover events and communities near you or across the world
           </p>
         </div>
@@ -248,7 +248,7 @@ function ExploreContent() {
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           {/* Search input */}
           <div className="relative flex-1 max-w-xl">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }}
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--brand-hint)" }}
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
@@ -259,9 +259,9 @@ function ExploreContent() {
               placeholder="Search events or communities…"
               className="w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2"
               style={{
-                border: "1px solid #E2DDD5",
-                backgroundColor: "#F2EFEA",
-                color: "#111827",
+                border: "1px solid var(--brand-border)",
+                backgroundColor: "var(--brand-bg)",
+                color: "var(--brand-text)",
               }}
             />
           </div>
@@ -271,7 +271,7 @@ function ExploreContent() {
             value={city.name}
             onChange={(e) => setCity(CITIES.find((c) => c.name === e.target.value) ?? selectedCity)}
             className="px-4 py-3 rounded-xl text-sm focus:outline-none"
-            style={{ border: "1px solid #E2DDD5", backgroundColor: "#F2EFEA", color: "#111827" }}
+            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}
           >
             {CITIES.map((c) => (
               <option key={c.name} value={c.name}>
@@ -282,13 +282,13 @@ function ExploreContent() {
 
           {/* Sort by */}
           <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm"
-            style={{ border: "1px solid #E2DDD5", backgroundColor: "#F2EFEA", color: "#374151" }}>
-            <span className="font-medium whitespace-nowrap" style={{ color: "#6B7280" }}>Sort by</span>
+            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}>
+            <span className="font-medium whitespace-nowrap" style={{ color: "var(--brand-hint)" }}>Sort by</span>
             <select
               value={sort}
               onChange={(e) => selectSort(e.target.value as Sort)}
               className="bg-transparent text-sm font-semibold focus:outline-none cursor-pointer"
-              style={{ color: "#111827" }}
+              style={{ color: "var(--brand-text)" }}
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -301,9 +301,9 @@ function ExploreContent() {
             onClick={() => setFiltersOpen((v) => !v)}
             className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
             style={{
-              border: `1px solid ${activeFiltersCount > 0 ? GREEN : "#E2DDD5"}`,
-              backgroundColor: activeFiltersCount > 0 ? GREEN : "#F2EFEA",
-              color: activeFiltersCount > 0 ? "#F2EFEA" : "#374151",
+              border: `1px solid ${activeFiltersCount > 0 ? GREEN : "var(--brand-border)"}`,
+              backgroundColor: activeFiltersCount > 0 ? GREEN : "var(--brand-surface)",
+              color: activeFiltersCount > 0 ? "var(--brand-on-green)" : "var(--brand-text)",
             }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -315,7 +315,7 @@ function ExploreContent() {
 
         {/* View switch + contextual Create button. The switch sits just below search. */}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="inline-flex rounded-xl p-1 gap-1" style={{ border: "1px solid #E2DDD5", backgroundColor: "#ECEAE5" }}>
+          <div className="inline-flex rounded-xl p-1 gap-1" style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-surface)" }}>
             {VIEW_SEGMENTS.map((seg) => {
               const active = view === seg.value;
               return (
@@ -326,7 +326,7 @@ function ExploreContent() {
                   className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                   style={{
                     backgroundColor: active ? GREEN : "transparent",
-                    color: active ? "#F2EFEA" : "#374151",
+                    color: active ? "var(--brand-on-green)" : "var(--brand-text)",
                   }}
                 >
                   {seg.label}
@@ -346,7 +346,7 @@ function ExploreContent() {
 
         {/* Filter panel */}
         {filtersOpen && (
-          <div className="mt-4 p-6 rounded-2xl space-y-6" style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}>
+          <div className="mt-4 p-6 rounded-2xl space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {/* Category */}
               <FilterGroup label="Category">
@@ -371,9 +371,9 @@ function ExploreContent() {
                             name="eventType"
                             checked={eventType === t}
                             onChange={() => setEventType(t)}
-                            className="accent-[#184E4A]"
+                            className="accent-[var(--brand-green)]"
                           />
-                          <span style={{ color: "#374151" }}>{t}</span>
+                          <span style={{ color: "var(--brand-text)" }}>{t}</span>
                         </label>
                       ))}
                     </div>
@@ -407,9 +407,9 @@ function ExploreContent() {
                         type="checkbox"
                         checked={freeOnly}
                         onChange={(e) => setFreeOnly(e.target.checked)}
-                        className="accent-[#184E4A] w-4 h-4"
+                        className="accent-[var(--brand-green)] w-4 h-4"
                       />
-                      <span style={{ color: "#374151" }}>Free events only</span>
+                      <span style={{ color: "var(--brand-text)" }}>Free events only</span>
                     </label>
                   </FilterGroup>
                 </>
@@ -432,11 +432,11 @@ function ExploreContent() {
       {/* Results — a single unified grid (events + communities mixed in "both" view) */}
       <div className="px-4 sm:px-6 lg:px-12 pb-20">
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-sm font-semibold" style={{ color: "#6B7280" }}>
+          <span className="text-sm font-semibold" style={{ color: "var(--brand-hint)" }}>
             {isLoading ? "Searching…" : `${countLabel(items.length)} found`}
           </span>
           {q && (
-            <span className="text-sm" style={{ color: "#9CA3AF" }}>
+            <span className="text-sm" style={{ color: "var(--brand-hint)" }}>
               for &ldquo;{q}&rdquo;
             </span>
           )}
@@ -449,16 +449,16 @@ function ExploreContent() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center py-20 gap-3">
-            <svg className="w-10 h-10" style={{ color: "#D1D5DB" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="w-10 h-10" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 16.318A4.486 4.486 0 0 0 12.016 15a4.486 4.486 0 0 0-3.198 1.318M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
             </svg>
-            <p className="text-[15px] font-semibold" style={{ color: "#6B7280" }}>Nothing matches your search</p>
-            <p className="text-sm" style={{ color: "#9CA3AF" }}>Try widening your search or clearing some filters.</p>
+            <p className="text-[18px] font-semibold" style={{ color: "var(--brand-hint)" }}>Nothing matches your search</p>
+            <p className="text-[16px]" style={{ color: "var(--brand-hint)" }}>Try widening your search or clearing some filters.</p>
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearFilters}
                 className="mt-2 text-sm font-semibold px-4 py-2 rounded-xl"
-                style={{ backgroundColor: GREEN, color: "#F2EFEA" }}
+                style={{ backgroundColor: GREEN, color: "var(--brand-on-green)" }}
               >
                 Clear filters
               </button>
@@ -491,7 +491,7 @@ function CreateButton({ label, onClick }: { label: string; onClick: () => void }
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-[#F2EFEA]"
+      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-[var(--brand-on-green)]"
       style={{ backgroundColor: GREEN }}
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -505,12 +505,12 @@ function CreateButton({ label, onClick }: { label: string; onClick: () => void }
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>{label}</label>
+      <label className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--brand-hint)" }}>{label}</label>
       {children}
     </div>
   );
 }
 
 const selectCls =
-  "w-full px-3 py-2 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-[#184E4A]/20 focus:border-[#184E4A]" +
-  " border-[#E2DDD5] bg-[#F2EFEA] text-[#111827]";
+  "w-full px-3 py-2 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]" +
+  " border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)]";

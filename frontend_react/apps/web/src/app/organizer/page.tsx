@@ -8,7 +8,7 @@ import type { Event } from "@eventmind/types";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
 
-const GREEN = "#184E4A";
+const GREEN = "var(--brand-green)";
 
 export default function OrganizerPage() {
   const router = useRouter();
@@ -27,21 +27,21 @@ export default function OrganizerPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
       {/* ── Header ── */}
       <div className="px-12 pt-10 pb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-[28px] font-bold text-[#111827]">Organizer Console</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Manage your events and track performance</p>
+          <h1 className="text-[28px] font-bold text-[var(--brand-text)]">Organizer Console</h1>
+          <p className="text-[18px] text-[var(--brand-hint)] mt-1">Manage your events and track performance</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push("/organizer/create")}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-[#F2EFEA] text-sm font-bold"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-[var(--brand-on-green)] text-sm font-bold"
             style={{ backgroundColor: GREEN }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#133d39")}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-green-hover)")}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GREEN)}
           >
             <PlusIcon /> Create New Event
@@ -59,15 +59,15 @@ export default function OrganizerPage() {
 
         {/* ── Events table ── */}
         <div>
-          <h2 className="text-[22px] font-bold text-[#111827] mb-6">Your Managed Events</h2>
+          <h2 className="text-[22px] font-bold text-[var(--brand-text)] mb-6">Your Managed Events</h2>
 
-          <div className="bg-[#F2EFEA] rounded-3xl overflow-hidden" style={{ border: "1px solid #E2DDD5" }}>
+          <div className="bg-[var(--brand-bg)] rounded-3xl overflow-hidden" style={{ border: "1px solid var(--brand-border)" }}>
             {events.length === 0 ? (
               <div className="py-16 text-center">
-                <p className="text-[#9CA3AF] text-[16px]">You haven&apos;t created any events yet.</p>
+                <p className="text-[var(--brand-hint)] text-[16px]">You haven&apos;t created any events yet.</p>
                 <button
                   onClick={() => router.push("/organizer/create")}
-                  className="mt-4 px-6 py-3 rounded-xl text-[#F2EFEA] text-sm font-semibold"
+                  className="mt-4 px-6 py-3 rounded-xl text-[var(--brand-on-green)] text-sm font-semibold"
                   style={{ backgroundColor: GREEN }}
                 >
                   Create your first event
@@ -76,8 +76,8 @@ export default function OrganizerPage() {
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-xs font-bold text-[#9CA3AF] uppercase tracking-wide"
-                    style={{ borderBottom: "1px solid #E2DDD5" }}>
+                  <tr className="text-left text-xs font-bold text-[var(--brand-hint)] uppercase tracking-wide"
+                    style={{ borderBottom: "1px solid var(--brand-border)" }}>
                     {["Event Name", "Date", "Status", "Sales", "Revenue", "Actions"].map((col) => (
                       <th key={col} className="px-6 py-4">{col}</th>
                     ))}
@@ -107,14 +107,14 @@ function EventRow({ event, isLast }: { event: Event; isLast: boolean }) {
   });
 
   return (
-    <tr style={{ borderBottom: isLast ? "none" : "1px solid #E2DDD5" }}>
-      <td className="px-6 py-4 font-semibold text-[#111827] max-w-[240px]">
+    <tr style={{ borderBottom: isLast ? "none" : "1px solid var(--brand-border)" }}>
+      <td className="px-6 py-4 font-semibold text-[var(--brand-text)] max-w-[240px]">
         <span className="truncate block">{event.title}</span>
       </td>
-      <td className="px-6 py-4 text-sm text-[#6B7280]">{date}</td>
+      <td className="px-6 py-4 text-sm text-[var(--brand-hint)]">{date}</td>
       <td className="px-6 py-4"><StatusBadge status={event.status} /></td>
-      <td className="px-6 py-4 text-sm text-[#6B7280]">120 / {event.capacity}</td>
-      <td className="px-6 py-4 text-sm font-semibold text-[#111827]">${revenue}</td>
+      <td className="px-6 py-4 text-sm text-[var(--brand-hint)]">120 / {event.capacity}</td>
+      <td className="px-6 py-4 text-sm font-semibold text-[var(--brand-text)]">${revenue}</td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-1">
           <IconBtn title="Edit" onClick={() => {}}>
@@ -135,7 +135,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className="px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase"
       style={{
-        backgroundColor: isPublished ? "#22C55E14" : "#F59E0B14",
+        backgroundColor: isPublished ? "color-mix(in srgb, #22C55E 8%, transparent)" : "color-mix(in srgb, #F59E0B 8%, transparent)",
         color: isPublished ? "#16A34A" : "#D97706",
       }}
     >
@@ -147,7 +147,7 @@ function StatusBadge({ status }: { status: string }) {
 function IconBtn({ children, title, onClick }: { children: React.ReactNode; title: string; onClick: () => void }) {
   return (
     <button onClick={onClick} title={title}
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-[#F2EFEA] transition-colors">
+      className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--brand-hint)] hover:text-[var(--brand-text)] hover:bg-[var(--brand-surface)] transition-colors">
       {children}
     </button>
   );
@@ -157,14 +157,14 @@ function IconBtn({ children, title, onClick }: { children: React.ReactNode; titl
 
 function StatCard({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) {
   return (
-    <div className="bg-[#F2EFEA] rounded-3xl p-8 flex items-center gap-6" style={{ border: "1px solid #E2DDD5" }}>
+    <div className="bg-[var(--brand-bg)] rounded-3xl p-8 flex items-center gap-6" style={{ border: "1px solid var(--brand-border)" }}>
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0"
         style={{ backgroundColor: `${color}14` }}>
         <span style={{ color }}>{icon}</span>
       </div>
       <div>
-        <p className="text-sm text-[#9CA3AF] mb-1">{label}</p>
-        <p className="text-[32px] font-bold text-[#111827]">{value}</p>
+        <p className="text-sm text-[var(--brand-hint)] mb-1">{label}</p>
+        <p className="text-[32px] font-bold text-[var(--brand-text)]">{value}</p>
       </div>
     </div>
   );

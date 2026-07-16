@@ -3,8 +3,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocationStore, CITIES, DEFAULT_CITY } from "@eventmind/store";
 import type { City } from "@eventmind/store";
+import { BRAND } from "@/lib/theme";
 
-const GREEN = "#184E4A";
+// Theme-aware tokens (resolve via CSS vars, see globals.css)
+const GREEN = BRAND.green;
+const SURFACE = BRAND.surface;
+const ON_GREEN = BRAND.onGreen;
+const TEXT = BRAND.text;
+const BORDER = BRAND.border;
+const HINT = BRAND.hint;
+// Subtle brand-tinted fills for the selected/hover list rows (adapt to theme).
+const SEL_BG = "color-mix(in srgb, var(--brand-green) 12%, transparent)";
+const HOVER_BG = "color-mix(in srgb, var(--brand-green) 8%, transparent)";
 
 // Country flag emoji from ISO code (globe for the flag-less "Online" pseudo-city)
 function countryFlag(code: string): string {
@@ -76,9 +86,9 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
             onClick={() => setOpen((v) => !v)}
             aria-label="Edit location"
             className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer"
-            style={{ color: open ? GREEN : "#9CA3AF" }}
+            style={{ color: open ? GREEN : HINT }}
             onMouseEnter={(e) => { if (!open) e.currentTarget.style.color = GREEN; }}
-            onMouseLeave={(e) => { if (!open) e.currentTarget.style.color = "#9CA3AF"; }}
+            onMouseLeave={(e) => { if (!open) e.currentTarget.style.color = HINT; }}
           >
             <svg className="w-4 h-4" viewBox="0 -0.5 21 21" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd"
@@ -90,7 +100,7 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
           {hovered && !open && (
             <span
               className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-full shadow-lg z-50 pointer-events-none"
-              style={{ backgroundColor: "#F2EFEA", color: "#184E4A", border: "1px solid #E2DDD5" }}
+              style={{ backgroundColor: SURFACE, color: GREEN, border: `1px solid ${BORDER}` }}
             >
               Click here to change your location
             </span>
@@ -102,11 +112,11 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1 shrink-0"
           aria-label="Select city"
-          style={{ color: hovered || open ? GREEN : "#111827" }}
+          style={{ color: hovered || open ? GREEN : TEXT }}
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="currentColor" d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-            <circle cx="12" cy="9" r="2.6" fill="#F2EFEA" />
+            <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
           </svg>
           <span className="text-base whitespace-nowrap">
             {selectedCity.name}
@@ -117,14 +127,14 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
           style={{
-            backgroundColor: open ? GREEN : "#ECEAE5",
-            color: open ? "#F2EFEA" : "#111827",
-            border: "1px solid #E2DDD5",
+            backgroundColor: open ? GREEN : SURFACE,
+            color: open ? ON_GREEN : TEXT,
+            border: `1px solid ${BORDER}`,
           }}
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="currentColor" d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-            <circle cx="12" cy="9" r="2.6" fill="#F2EFEA" />
+            <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
           </svg>
           <span>{selectedCity.name}</span>
           <svg
@@ -141,7 +151,7 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
       {variant !== "icon" && hovered && !open && (
         <span
           className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-full shadow-lg z-50 pointer-events-none"
-          style={{ backgroundColor: "#F2EFEA", color: "#184E4A", border: "1px solid #E2DDD5" }}
+          style={{ backgroundColor: SURFACE, color: GREEN, border: `1px solid ${BORDER}` }}
         >
           Click here to change your location
         </span>
@@ -151,12 +161,12 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
       {open && (
         <div
           className={`absolute top-full mt-2 w-64 rounded-2xl shadow-xl z-50 overflow-hidden ${variant === "icon" ? "left-[-8px]" : "left-0"}`}
-          style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}
+          style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}
         >
           {/* Search */}
-          <div className="p-3" style={{ borderBottom: "1px solid #E2DDD5" }}>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: "#F2EFEA" }}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#9CA3AF" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="p-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: SURFACE }}>
+              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: HINT }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z" />
               </svg>
               <input
@@ -166,15 +176,15 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search city…"
                 className="bg-transparent text-sm w-full focus:outline-none"
-                style={{ color: "#111827" }}
+                style={{ color: TEXT }}
               />
             </div>
           </div>
 
           {/* City list */}
-          <ul className="max-h-64 overflow-y-auto py-1" style={{ fontFamily: "'Roboto', sans-serif" }}>
+          <ul className="max-h-64 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <li className="px-4 py-3 text-base" style={{ color: "#9CA3AF" }}>No cities found.</li>
+              <li className="px-4 py-3 text-base" style={{ color: HINT }}>No cities found.</li>
             ) : (
               filtered.map((city) => {
                 const isSelected = city.name === selectedCity.name;
@@ -185,10 +195,10 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
                       className="w-full flex items-center justify-between px-4 py-2.5 transition-colors"
                       style={{
                         fontSize: "16px",
-                        backgroundColor: isSelected ? "#F0F7F6" : "transparent",
-                        color: isSelected ? GREEN : "#111827",
+                        backgroundColor: isSelected ? SEL_BG : "transparent",
+                        color: isSelected ? GREEN : TEXT,
                       }}
-                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "#F9F8F6"; }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = HOVER_BG; }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
                     >
                       <span className="flex items-center gap-2.5">

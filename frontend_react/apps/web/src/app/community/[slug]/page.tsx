@@ -3,12 +3,19 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { communityApi, eventsApi } from "@eventmind/api";
+import { communitySource, eventsSource } from "@/lib/data-source";
 import { Navbar } from "@/components/navbar/Navbar";
 import { EventCardItem } from "@/components/EventsCarousel";
 import { toCarouselEvent } from "@/lib/card-adapters";
+import { BRAND } from "@/lib/theme";
 
-const GREEN = "#184E4A";
+const GREEN = BRAND.green;
+const BG = BRAND.bg;
+const SURFACE = BRAND.surface;
+const ON_GREEN = BRAND.onGreen;
+const TEXT = BRAND.text;
+const BORDER = BRAND.border;
+const HINT = BRAND.hint;
 
 export default function CommunityDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -16,13 +23,13 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
 
   const { data: communityRes, isLoading: communityLoading } = useQuery({
     queryKey: ["community", slug],
-    queryFn: () => communityApi.getBySlug(slug).then((r) => r.data),
+    queryFn: () => communitySource.getBySlug(slug).then((r) => r.data),
   });
 
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["community-events", communityRes?.id],
     queryFn: () =>
-      eventsApi
+      eventsSource
         .search({ community_id: communityRes!.id, limit: 100 })
         .then((r) => r.data),
     enabled: !!communityRes?.id,
@@ -32,7 +39,7 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
 
   if (communityLoading) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+      <div className="min-h-screen" style={{ backgroundColor: BG }}>
         <Navbar />
         <div className="flex justify-center py-24">
           <div className="w-10 h-10 rounded-full border-4 border-t-transparent animate-spin"
@@ -44,13 +51,13 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
 
   if (!communityRes) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+      <div className="min-h-screen" style={{ backgroundColor: BG }}>
         <Navbar />
         <div className="flex flex-col items-center py-24 gap-4">
-          <p className="text-[18px] font-semibold" style={{ color: "#6B7280" }}>Community not found</p>
+          <p className="text-[18px] font-semibold" style={{ color: HINT }}>Community not found</p>
           <button
             onClick={() => router.push("/communities")}
-            className="text-sm font-semibold px-4 py-2 rounded-xl text-[#F2EFEA]"
+            className="text-sm font-semibold px-4 py-2 rounded-xl text-[var(--brand-on-green)]"
             style={{ backgroundColor: GREEN }}
           >
             Explore Communities
@@ -64,7 +71,7 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
   const initial = community.name.charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: BG }}>
       <Navbar />
 
       {/* Hero banner */}
@@ -72,16 +79,16 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
         <div className="max-w-4xl mx-auto flex items-center gap-6">
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0"
-            style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#F2EFEA" }}
+            style={{ backgroundColor: "rgba(255,255,255,0.15)", color: ON_GREEN }}
           >
             {initial}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap mb-1">
-              <h1 className="text-[30px] font-extrabold text-[#F2EFEA]">{community.name}</h1>
+              <h1 className="text-[30px] font-extrabold text-[var(--brand-on-green)]">{community.name}</h1>
               {community.category && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#F2EFEA" }}>
+                  style={{ backgroundColor: "rgba(255,255,255,0.2)", color: ON_GREEN }}>
                   {community.category}
                 </span>
               )}
@@ -113,8 +120,8 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
       <div className="px-12 py-10 max-w-6xl mx-auto">
         <div className="flex items-end justify-between mb-6">
           <div>
-            <h2 className="text-[22px] font-bold" style={{ color: "#111827" }}>Events</h2>
-            <p className="text-sm mt-0.5" style={{ color: "#6B7280" }}>
+            <h2 className="text-[22px] font-bold" style={{ color: TEXT }}>Events</h2>
+            <p className="text-sm mt-0.5" style={{ color: HINT }}>
               {isLoading ? "Loading…" : `${events?.length ?? 0} event${events?.length !== 1 ? "s" : ""} from this community`}
             </p>
           </div>
@@ -137,12 +144,12 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
           </div>
         ) : !events || events.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3 rounded-2xl"
-            style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}>
-            <svg className="w-9 h-9" style={{ color: "#D1D5DB" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}>
+            <svg className="w-9 h-9" style={{ color: HINT }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
             </svg>
-            <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No events yet</p>
-            <p className="text-sm" style={{ color: "#9CA3AF" }}>
+            <p className="text-[18px] font-semibold" style={{ color: HINT }}>No events yet</p>
+            <p className="text-[16px]" style={{ color: HINT }}>
               The organiser hasn&apos;t linked any events to this community yet.
             </p>
           </div>

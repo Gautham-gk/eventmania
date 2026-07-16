@@ -57,9 +57,12 @@ def login_user(form_data: UserLogin, db: Session = Depends(get_db)):
     # 1. Fetch user by email
     user = db.query(UserCredentials).filter(UserCredentials.email == form_data.email).first()
     if not user:
+        # Distinct marker so the frontend can offer a "sign up instead" flow.
+        # (Trade-off: this reveals whether an email is registered — acceptable
+        # for this product's UX; revisit if account enumeration becomes a concern.)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="email_not_registered",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

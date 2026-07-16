@@ -7,14 +7,18 @@ import { useQuery } from "@tanstack/react-query";
 import { organizerApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { CityPicker } from "@/components/CityPicker";
+import { BrandLogo } from "@/components/brand";
+import { BRAND } from "@/lib/theme";
+import { useTheme } from "@/providers/theme-provider";
 
-// ── Brand tokens ──────────────────────────────────────────────────────────────
-const GREEN = "#184E4A";
-const LINEN = "#F2EFEA";
-const TEXT = "#111827";
-const BORDER = "#E2DDD5";
-const NAV_BORDER = "#C8C1B8";
-const HINT = "#9CA3AF";
+// ── Brand tokens (theme-aware — resolve via CSS vars, see globals.css) ─────────
+const GREEN = BRAND.green;
+const LINEN = BRAND.surface;    // linen-as-background → surface
+const ON_GREEN = BRAND.onGreen; // linen-as-text-on-green → stays light-on-green
+const TEXT = BRAND.text;
+const BORDER = BRAND.border;
+const NAV_BORDER = BRAND.navBorder;
+const HINT = BRAND.hint;
 
 type MenuKey = "events" | "groups" | "avatar" | null;
 
@@ -35,7 +39,7 @@ function useHoverStyle(defaultBg = "transparent", defaultFg = TEXT) {
   return {
     style: {
       backgroundColor: hovered ? GREEN : defaultBg,
-      color: hovered ? LINEN : defaultFg,
+      color: hovered ? ON_GREEN : defaultFg,
       transition: "background-color 150ms, color 150ms",
     } as React.CSSProperties,
     onMouseEnter: () => setHovered(true),
@@ -129,40 +133,32 @@ interface AvatarMenuProps {
 }
 
 function AvatarMenu({ name, isOpen, onOpen, onClose, onLogout, isOrganizer }: AvatarMenuProps) {
-  const triggerHover = useHoverStyle();
   const router = useRouter();
+  const [hovered, setHovered] = useState(false);
+
+  // First initial of the display name (already capitalised) on a brand-green disc.
+  const initial = name ? name.charAt(0).toUpperCase() : "";
 
   return (
     <div
       className="relative"
-      onMouseEnter={() => { triggerHover.onMouseEnter(); onOpen(); }}
-      onMouseLeave={() => { triggerHover.onMouseLeave(); onClose(); }}
+      onMouseEnter={() => { setHovered(true); onOpen(); }}
+      onMouseLeave={() => { setHovered(false); onClose(); }}
     >
       <button
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-base font-medium"
-        style={triggerHover.style}
+        className="flex items-center rounded-full"
+        aria-label={name ? `${name} — account menu` : "Account menu"}
       >
-        {name && <span className="text-base font-medium">{name}</span>}
         <div
-          className="w-[34px] h-[34px] rounded-full flex items-center justify-center"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-[16px] font-semibold leading-none select-none"
           style={{
-            backgroundColor: `${GREEN}14`,
-            border: `1.5px solid ${GREEN}59`,
+            backgroundColor: GREEN,
+            color: ON_GREEN,
+            boxShadow: hovered ? `0 0 0 3px color-mix(in srgb, ${GREEN} 22%, transparent)` : "none",
+            transition: "box-shadow 150ms",
           }}
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.8}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-            />
-          </svg>
+          {initial}
         </div>
       </button>
 
@@ -195,7 +191,7 @@ function LogoutItem({ onLogout }: { onLogout: () => void }) {
       className="w-full text-left px-4 py-3 text-base font-medium whitespace-nowrap"
       style={{
         backgroundColor: hovered ? GREEN : "transparent",
-        color: hovered ? LINEN : GREEN,
+        color: hovered ? ON_GREEN : GREEN,
         transition: "background-color 150ms, color 150ms",
       }}
       onMouseEnter={() => setHovered(true)}
@@ -234,12 +230,41 @@ function BellButton() {
   );
 }
 
+// ── Theme toggle (sun / moon) ───────────────────────────────────────────────
+// Shows a moon in light mode (tap → dark) and a sun in dark mode (tap → light).
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const hover = useHoverStyle();
+  const isDark = theme === "dark";
+  return (
+    <button
+      className="p-2 rounded-md"
+      style={hover.style}
+      onMouseEnter={hover.onMouseEnter}
+      onMouseLeave={hover.onMouseLeave}
+      onClick={toggleTheme}
+      title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+    >
+      {isDark ? (
+        <svg className="w-[21px] h-[21px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+        </svg>
+      ) : (
+        <svg className="w-[21px] h-[21px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message }: { message: string }) {
   return (
     <div
       className="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-base font-medium shadow-lg z-[100]"
-      style={{ backgroundColor: GREEN, color: LINEN }}
+      style={{ backgroundColor: GREEN, color: ON_GREEN }}
     >
       {message}
     </div>
@@ -323,18 +348,12 @@ export function Navbar() {
         style={{ backgroundColor: LINEN, borderBottom: `1px solid ${NAV_BORDER}` }}
       >
         <nav className="flex items-center h-[72px] px-4 sm:px-6 lg:px-12">
-          {/* ── Logo + wordmark (always visible) ── */}
-          <div className="flex items-center gap-2.5 shrink-0" onMouseEnter={closeAll}>
-            <Link href="/" className="flex items-center gap-2.5 no-underline">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-base font-bold"
-                style={{ backgroundColor: GREEN, color: LINEN }}
-              >
-                E
-              </div>
-              <span className="text-[19px] font-extrabold tracking-[0.2px]" style={{ color: GREEN }}>
-                NewFind
-              </span>
+          {/* ── Logo + wordmark (always visible; tints via --brand-logo per theme) ── */}
+          <div className="flex items-center shrink-0" onMouseEnter={closeAll}>
+            <Link href="/" className="no-underline" aria-label="NewFind — home">
+              {/* markSize 55 → wordmark ~32px (55 × 0.58); visible mark circle
+                  ~45px, so it sits comfortably in the 72px navbar. */}
+              <BrandLogo markSize={55} gap={16} style={{ color: BRAND.logo }} />
             </Link>
           </div>
 
@@ -346,7 +365,7 @@ export function Navbar() {
             <div onMouseEnter={closeAll} className="shrink-0">
               <div
                 className="flex items-center w-[360px] xl:w-[400px] h-10 rounded-lg px-3 gap-2"
-                style={{ backgroundColor: LINEN, border: '1.5px solid rgba(17,24,39,0.5)' }}
+                style={{ backgroundColor: LINEN, border: `1.5px solid ${NAV_BORDER}` }}
                 onMouseEnter={() => setSearchActive(true)}
                 onMouseLeave={() => setSearchActive(false)}
               >
@@ -371,7 +390,7 @@ export function Navbar() {
                   className="flex-1 text-base bg-transparent outline-none min-w-0"
                   style={{ color: TEXT }}
                 />
-                <div className="w-px self-stretch shrink-0" style={{ backgroundColor: 'rgba(17,24,39,0.5)' }} />
+                <div className="w-px self-stretch shrink-0" style={{ backgroundColor: NAV_BORDER }} />
                 <CityPicker variant="inline" />
               </div>
             </div>
@@ -395,6 +414,11 @@ export function Navbar() {
             />
             <div className="w-2" />
             <HelpButton onMouseEnter={closeAll} />
+
+            <div className="w-2" />
+            <div onMouseEnter={closeAll}>
+              <ThemeToggle />
+            </div>
 
             {isAuthenticated && (
               <>
@@ -449,7 +473,7 @@ export function Navbar() {
             {/* Search */}
             <div
               className="flex items-center h-11 rounded-lg px-3 gap-2"
-              style={{ backgroundColor: LINEN, border: '1.5px solid rgba(17,24,39,0.5)' }}
+              style={{ backgroundColor: LINEN, border: `1.5px solid ${NAV_BORDER}` }}
               onMouseEnter={() => setSearchActive(true)}
               onMouseLeave={() => setSearchActive(false)}
             >
@@ -481,6 +505,9 @@ export function Navbar() {
               <CityPicker />
             </div>
 
+            {/* Theme toggle */}
+            <MobileThemeRow />
+
             {/* Events */}
             <MobileNavSection title="Events" items={eventsItems} onNavigate={() => setMobileOpen(false)} />
 
@@ -495,7 +522,7 @@ export function Navbar() {
                 href="/auth"
                 onClick={() => setMobileOpen(false)}
                 className="w-full text-center px-5 py-3 rounded-lg text-base font-semibold no-underline"
-                style={{ backgroundColor: GREEN, color: LINEN }}
+                style={{ backgroundColor: GREEN, color: ON_GREEN }}
               >
                 Sign In
               </Link>
@@ -536,6 +563,22 @@ function MobileNavSection({ title, items, onNavigate }: { title: string; items: 
   );
 }
 
+function MobileThemeRow() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      onClick={toggleTheme}
+      className="flex items-center gap-3 px-2 py-3 text-base font-medium text-left rounded-md"
+      style={{ color: TEXT }}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+    >
+      <span className="text-lg leading-none">{isDark ? "☀️" : "🌙"}</span>
+      {isDark ? "Light theme" : "Dark theme"}
+    </button>
+  );
+}
+
 function MobileNavButton({ emoji, label, onTap }: { emoji: string; label: string; onTap: () => void }) {
   return (
     <button
@@ -570,7 +613,7 @@ function SignInButton() {
     <Link
       href="/auth"
       className="px-[22px] py-[10px] rounded-lg text-base font-semibold no-underline"
-      style={{ backgroundColor: GREEN, color: LINEN }}
+      style={{ backgroundColor: GREEN, color: ON_GREEN }}
     >
       Sign In
     </Link>

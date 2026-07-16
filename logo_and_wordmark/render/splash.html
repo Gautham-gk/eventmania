@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;}
+  #s{position:relative;overflow:hidden;background:#184E4A;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;}
+  .ring{position:absolute;border:3px solid rgba(242,239,234,0.08);border-radius:50%;}
+  .aura{position:absolute;border:4px solid #E07A5F;border-radius:50%;opacity:0.5;}
+</style>
+</head>
+<body>
+  <div id="s">
+    <div class="ring" id="r1"></div>
+    <div class="ring" id="r2"></div>
+    <div style="position:relative;display:flex;align-items:center;justify-content:center;" id="markwrap">
+      <div class="aura" id="aura"></div>
+      <img src="../svg/mark/newfind-mark-linen.svg" id="mark">
+    </div>
+    <img src="../svg/wordmark/newfind-wordmark-linen.svg" id="wm">
+    <div id="tag">Find events and communities, anywhere</div>
+  </div>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const W = +p.get('w')||1080, H = +p.get('h')||1920;
+    const s = document.getElementById('s'); s.style.width=W+'px'; s.style.height=H+'px';
+    const k = W/1080;
+    s.style.gap = (70*k)+'px';
+    document.getElementById('r1').style.cssText='position:absolute;border:3px solid rgba(242,239,234,0.08);border-radius:50%;width:'+(900*k)+'px;height:'+(900*k)+'px;top:'+(-200*k)+'px;left:'+(-320*k)+'px;';
+    document.getElementById('r2').style.cssText='position:absolute;border:3px solid rgba(242,239,234,0.08);border-radius:50%;width:'+(640*k)+'px;height:'+(640*k)+'px;bottom:'+(120*k)+'px;right:'+(-260*k)+'px;';
+    const md=Math.round(300*k); document.getElementById('mark').style.cssText='height:'+md+'px;display:block;position:relative;z-index:1;';
+    const ad=Math.round(360*k); const a=document.getElementById('aura'); a.style.width=ad+'px'; a.style.height=ad+'px';
+    document.getElementById('wm').style.cssText='height:'+Math.round(120*k)+'px;display:block;z-index:1;';
+    const t=document.getElementById('tag'); t.style.cssText='font-size:'+Math.round(40*k)+'px;color:#BCD0CB;z-index:1;text-align:center;padding:0 '+(80*k)+'px;';
+  </script>
+</body>
+</html>

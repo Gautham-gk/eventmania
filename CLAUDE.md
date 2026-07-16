@@ -97,7 +97,9 @@ frontend_react/apps/web/src/
 │   └── navbar/Navbar.tsx
 ├── lib/
 │   ├── api-config.ts
-│   └── card-adapters.ts               ← toCarouselEvent() + toCommunityItem() adapters
+│   ├── card-adapters.ts               ← toCarouselEvent() + toCommunityItem() adapters
+│   ├── data-source.ts                 ← DUMMY (fixtures) vs REAL (live API) switch — see below
+│   └── fixtures/                      ← dummy events.ts + communities.ts (API-shaped)
 └── providers/query-provider.tsx
 
 frontend_react/packages/
@@ -317,6 +319,20 @@ pnpm --filter @eventmind/web dev:webpack
 # Opens at http://localhost:3000
 ```
 
+#### Dummy vs Real data mode (frontend without a backend)
+
+Events & communities can be sourced from **local fixtures** (no backend needed) or the **live backend**, toggled by `NEXT_PUBLIC_DATA_MODE` in `apps/web/.env.local`:
+
+```
+NEXT_PUBLIC_DATA_MODE=dummy   # local fixtures — beautify/UI work, no backend running
+NEXT_PUBLIC_DATA_MODE=real    # live backend via the gateway (default when unset)
+```
+
+- Implemented in [`src/lib/data-source.ts`](frontend_react/apps/web/src/lib/data-source.ts): pages import `eventsSource` / `communitiesSource` / `communitySource` instead of `eventsApi` / `communitiesApi` / `communityApi`. Same method shapes + `{ data }` envelope, so call sites are identical. Only **read** paths switch; mutations (create/pay) always hit the real API.
+- Dummy data lives in [`src/lib/fixtures/`](frontend_react/apps/web/src/lib/fixtures/) as API-shaped `Event[]` / `Community[]` (dates computed relative to now so badges stay live). In dummy mode geo/city/price/date filters are ignored so the UI is always populated; only online-vs-offline (category `"online"`), a loose text query, and `limit` are honoured.
+- `NEXT_PUBLIC_*` vars are inlined at dev-server start — **restart the dev server after changing the mode.**
+- Switched surfaces: home (`/`), `/explore`, `/event/[id]`, `/checkout/[id]`, `/community/[slug]`. In dummy mode the home page also skips the Ticketmaster auto-ingest.
+
 > **⚠️ On low-RAM (8 GB) machines, use `dev:webpack`, NOT plain `dev`.**
 > The default `pnpm --filter @eventmind/web dev` uses **Turbopack**, which spawns a large
 > parallel worker pool to compile routes. On an 8 GB machine that exhausts physical RAM, so
@@ -379,17 +395,30 @@ Keep this updated as components are created or significantly changed.
 
 | File | Purpose | Notes |
 |---|---|---|
-| `components/EventsCarousel.tsx` | Main events grid + online events section | API-driven via `toCarouselEvent()`. Exports `CarouselEvent` type. Accepts `events`, `isLoading`, `onBookNow`, `locationSlot` props. |
+| `components/EventsCarousel.tsx` | Main events grid + online events section | API-driven via `toCarouselEvent()`. Exports `CarouselEvent` type **and `EventCardItem`** — the card actually used by home, `/explore` and `/community/[slug]` (not `EventCard.tsx`). Accepts `events`, `isLoading`, `onBookNow`, `locationSlot` props. Share/wishlist come from `EventActions.tsx`; it no longer defines its own. |
 | `components/CommunityCarousel.tsx` | Community cards carousel on the home page | API-driven via `toCommunityItem()`. Exports `CommunityItem` type. |
-| `components/EventCard.tsx` | Single event card used in the API-driven grid on the home page | Uses `@eventmind/types Event` (different from `CarouselEvent`) |
+| `components/EventBadges.tsx` | **The** event tags — both families. **Status tags** (Free / Selling Fast / This Week / Today / Recommended / Sold Out): `BadgeType`, `BADGE_CONFIG`, `EventBadge`, `EventBadges`. **Category tag** (Music / Arts & Culture / …): `CategoryBadge`, `categoryColor`. | **Import these — never re-declare BADGE_CONFIG or pick your own category colour.** Used by the cards (`EventsCarousel`) AND the `/event/[id]` hero. `EventBadges` renders nothing for an empty/absent list, so callers need no length check. All colours are fixed semantic accents (same in light + dark) — the tags render on the hero's dark photo scrim, which is dark in both themes. **Which** status tags an event gets is decided in ONE place: `toCarouselEvent()` in `lib/card-adapters.ts` — a `BADGE_CONFIG` entry that nothing emits is dead (see "Known design inconsistencies"). **Category colours:** one fixed colour per category, looked up case-insensitively in `CATEGORY_COLORS`; an unlisted category hashes onto the same palette so it still gets one stable colour. Deliberately a *softer* family than the status pills (translucent tint + pale text, vs. solid fill + linen text) because the two sit at either end of one row on `/event/[id]`. |
+| `components/EventActions.tsx` | **The** round event controls: `EventShareButton`, `EventWishlistButton`, `EventBackButton`. | **Import these — never hand-roll another share/heart/back.** Used by the cards (`EventsCarousel`) AND the `/event/[id]` hero, so the two cannot drift. Share + wishlist take a `CarouselEvent` (call `toCarouselEvent(event)` if you hold an API `Event`), so a wishlist save is identical from any surface. All three share one chrome: linen circle, muted icon that goes **green on hover**, hover label pill. Props: `labelSide` ('left' \| 'right') puts the hover label on the side away from the anchored edge; `size` ('sm' = 32px, the card overlay default \| 'lg' = 48px, for standalone surfaces like the event hero). `EventBackButton` also takes `onClick` — it is a dumb button, the caller decides where "back" goes; its label says "Go back" (not a named destination) because `/event/[id]` passes `router.back()`. **Need a variant? Add a prop here — do not fork the file.** |
+| `components/EventCard.tsx` | ⚠️ **DEAD CODE — nothing imports it.** The real card is `EventCardItem` in `EventsCarousel.tsx`. | Kept only to avoid an unrequested deletion; see "Known design inconsistencies". Uses `@eventmind/types Event` (different from `CarouselEvent`). |
 | `components/HeroCarousel.tsx` | Auto-rotating hero banner at the top of the home page | 5 image-only slides (no text overlay), diagonal clip-path wipe animation, 16:9 aspect ratio (maxHeight 85vh). Images are local PNGs in `apps/web/public/hero/` (`hero-2,3,4,5,7.png`); update the `IMAGES` array to add/remove. Uses `<img>` (not `next/image`) because the wipe relies on `clip-path`. |
 | `components/CityPicker.tsx` | City selector dropdown | Uses `useLocationStore`. CITIES list includes NYC, London, Berlin, etc. Default city is New York. |
-| `components/EventChatWidget.tsx` | AI chat widget on event detail page | Allows attendees to chat with an AI about the event |
+| `components/EventChatWidget.tsx` | AI chat widget on event detail page | Allows attendees to chat with an AI about the event. The floating launcher button is **terracotta** (`--brand-terracotta`), not green — so it reads as a distinct accent instead of competing with the green Book Now / booking card CTAs. The panel internals (send button, user bubbles) remain green. |
 | `components/Footer.tsx` | Site footer, rendered on the home page | Green (#184E4A) background, linen text, link columns (Discover / For Organisers / Company), social icons. |
-| `components/navbar/Navbar.tsx` | Sticky top navigation | Desktop nav on `lg+`, hamburger mobile menu on `<lg`. Search bar with inline city picker, Events + Communities dropdowns, notification bell (no-op), auth-aware avatar menu (My Dashboard, My Wishlist, My Organised Events [org only], Organiser Console, Settings, Log Out). Detects organizer status via `organizerApi.get()` (5-min React Query cache). |
+| `components/navbar/Navbar.tsx` | Sticky top navigation | Desktop nav on `lg+`, hamburger mobile menu on `<lg`. Search bar with inline city picker, Events + Communities dropdowns, notification bell (no-op), auth-aware avatar menu (My Dashboard, My Wishlist, My Organised Events [org only], Organiser Console, Settings, Log Out). Detects organizer status via `organizerApi.get()` (5-min React Query cache). Includes the sun/moon **theme toggle** (desktop: after "Help"; mobile: a row in the hamburger panel) via `useTheme()`. |
 | `lib/card-adapters.ts` | Type adapters from API shapes to card component shapes | `toCarouselEvent(Event → CarouselEvent)`, `toCommunityItem(Community → CommunityItem)`. Uses `picsum.photos/seed/<id>` for placeholder images. |
+| `components/brand/*` | Official NewFind logo/wordmark/loader, built from the assets in `eventmind/logo_and_wordmark/`. | Inline SVG so they tint via `currentColor`: `BrandMark` (face glyph, fixed terracotta dot), `Wordmark` (Lobster Two "NewFind" — exact master paths, injected via `dangerouslySetInnerHTML`), `BrandLogo` (horizontal lockup = mark + wordmark), `BrandLoader` ("breathing aura" loading state). Colour is driven by the theme-aware `--brand-logo` var (green in light, linen in dark); set `color` on a wrapper to re-tint. Used by Navbar, Footer (fixed linen), `/auth` hero, and `app/loading.tsx`. Loader keyframes (`nf-aura/nf-breathe/nf-blink`) live in `globals.css` and respect `prefers-reduced-motion`. Favicon/PWA/OG assets are in `public/brand/` + `public/manifest.webmanifest`, referenced from `layout.tsx` metadata. |
+| `components/ShareButton.tsx` | ⚠️ **Effectively dead** — its only importer is the dead `EventCard.tsx`. Use `EventActions.tsx` instead. | Opens the native share sheet with the generated **story image** (`navigator.share({ files })`) on supported devices; otherwise pops `ShareModal`. Props: `event`, `className` (size/position), `iconClassName`, `stopPropagation`. |
+| `components/ShareModal.tsx` | Desktop fallback for the share flow. | Previews the 9:16 story card and offers **Download image** + **Copy link**. Shown only when the native share sheet is unavailable (i.e. **not** on Chrome/Edge on Windows, which do support Web Share — you'll get the OS share sheet there instead). **Portalled to `<body>` via `createPortal` — do not remove.** It is opened from inside event cards / the event hero, which are `overflow-hidden`, fade to `opacity-0` when un-hovered, and apply a `transform` on hover; a transformed ancestor becomes the containing block for `position: fixed`, so rendering in place pins the overlay inside the card and clips it away. |
 
 > Add new components here as they are created.
+
+### Event sharing — link unfurl (1b) + story card (1c)
+
+Sharing an event produces two branded graphics, both generated server-side with `next/og` `ImageResponse` (no new deps) from the event's **own** picture (`image_url`, or the same `picsum.photos/seed/<id>` placeholder the card uses):
+
+- **Link unfurl (paste anywhere — iMessage/WhatsApp/Slack):** `app/event/[id]/opengraph-image.tsx` renders the 1200×630 card (event image left, NewFind mark → title → "place · date · price"). `app/event/[id]/layout.tsx` is a server component whose only job is `generateMetadata()` (title/description/OG/Twitter); Next auto-wires the `opengraph-image` route into `og:image`/`twitter:image`. The page itself stays a client component.
+- **Share button → story (post to a story):** `app/event/[id]/story/route.tsx` returns a 1080×1920 PNG (full-bleed event image, "YOU'RE INVITED" → title → "category · place" → "Join on NewFind"). `lib/share-event.ts` fetches it and hands it to `navigator.share`; falls back to `ShareModal`.
+- Shared helpers in `lib/event-media.ts` (`eventImageUrl`/`priceLabel`/`locationLabel`/`shortDate`) and `lib/event-server.ts` (`getEventForShare`/`siteOrigin`). Set `NEXT_PUBLIC_SITE_URL` in production so absolute share URLs/`metadataBase` are correct (defaults to `http://localhost:3000`).
 
 ---
 
@@ -397,7 +426,21 @@ Keep this updated as components are created or significantly changed.
 
 Before building a new feature, read the PRD at `Eventmind_files/eventmind_prd.md` to understand the product intent. Do not build features that are not in the PRD without confirming with the team first.
 
-EventMind's design is clean, minimal, and premium — inspired by functionhealth.com (aesthetic) and austoentertainment.com (colour palette). **User-friendliness and simplicity are the top priorities.** Do not add unnecessary complexity, decorations, or features.
+EventMind's design is clean, minimal, and premium — inspired by functionhealth.com (aesthetic) and austoentertainment.com (colour palette). **User-friendliness, simplicity, and consistency are the top priorities.** Do not add unnecessary complexity, decorations, or features.
+
+### ⚠️ Consistency is a requirement, not a preference — read this first
+
+**The same thing must look and behave the same way everywhere in the app.** A user moving from the home page to an event page to a community page should never notice that two different people built them. This outranks matching a mockup pixel-for-pixel: if a mockup conflicts with an established pattern, say so and ask before diverging.
+
+Concretely, before you build any UI:
+
+1. **Search for the pattern before you write it.** If a share button, favourite/heart, date row, price chip, badge, or empty state already exists somewhere, **import that component**. Do not hand-roll a second version. A second version is a bug, even when it looks fine on its own.
+2. **One control = one component.** Share + wishlist controls live in [`components/EventActions.tsx`](frontend_react/apps/web/src/components/EventActions.tsx) and are used by BOTH the cards and the `/event/[id]` hero. If a control needs to look different on a new surface, add a **prop** (see `labelSide`), do not fork the file.
+3. **One icon per concept.** A calendar means the same glyph everywhere; same for location, time, person. Do not introduce a new icon for a concept that already has one.
+4. **Consistent ≠ identical behaviour by accident.** If two surfaces share a look, they must share the code — otherwise they silently drift. Copy-paste is how the drift starts.
+5. **If you find an inconsistency, report it.** Do not quietly work around it, and do not unilaterally restyle a shared surface to fix it — flag it and let Gautham decide, because a "fix" in one place changes every other place.
+
+> **Known outstanding inconsistencies** are tracked under "Known design inconsistencies (open)" below. Check that list before assuming something is intentional.
 
 ### Colour palette — use these exact values everywhere, no substitutes
 
@@ -416,12 +459,50 @@ EventMind's design is clean, minimal, and premium — inspired by functionhealth
 - When Gautham says **"green"** or **"green shade"** → always use `#184E4A`. Never use any other green (e.g. `#16a34a`, Tailwind `green-*`).
 - When Gautham says **"white"** or **"white shade"** (unless he explicitly means pure white) → always use linen `#F2EFEA`. Pure white `#FFFFFF` is only acceptable for text on dark/coloured backgrounds (e.g. badge labels, button text on green).
 
+### Theming — light/dark (IMPORTANT: colours are now CSS variables)
+
+The app has a **light/dark theme** with a sun/moon toggle in the navbar. The brand palette above is no longer hardcoded — every colour is a `--brand-*` CSS variable defined **once** in `apps/web/src/app/globals.css` (light in `:root`, dark in `:root[data-theme="dark"]`). **Do not reintroduce raw brand hexes** (`#184E4A`, `#F2EFEA`, etc.) in components — use the variables:
+
+- Tokens: `--brand-green`, `--brand-green-hover`, `--brand-on-green` (text/icons that sit ON a green fill), `--brand-bg` (page), `--brand-surface` (cards/navbar/inputs), `--brand-text`, `--brand-border`, `--brand-nav-border`, `--brand-hint`.
+- **Terracotta accent:** `--brand-terracotta` (`#C1603F`), `--brand-terracotta-hover`, `--brand-on-terracotta` (white). Used by the event-assistant chat button. (It used to be the `/event/[id]` category badge too; that badge now takes a per-category colour from `EventBadges.tsx`, where terracotta survives as the "Other"/"General" colour.) **Deliberately the same hex in both themes** — it is a semantic accent, not a themed surface, so it sits with the badge reds/golds rather than the green/linen system. Use the token, not the hex: `BRAND.terracotta` or `var(--brand-terracotta)`. (Some older raw `#C1603F` literals still exist — e.g. the "spots left" chip and social-proof avatars on `/event/[id]`; migrate them to the token when you next touch that code.)
+- In inline styles: `style={{ color: "var(--brand-text)" }}` or import the `BRAND` string map from `@/lib/theme` (`BRAND.green`, `BRAND.onGreen`, …).
+- In Tailwind classes: arbitrary values with the var, e.g. `text-[var(--brand-hint)]`, `bg-[var(--brand-surface)]`.
+- **The old `LINEN` was overloaded** (page bg AND text-on-green). These diverge in dark mode — map background uses to `--brand-surface`/`--brand-bg` and text-on-green uses to `--brand-on-green`.
+- Alpha tints: use `color-mix(in srgb, var(--brand-green) N%, transparent)` — a CSS var can't take a hex-alpha suffix like `${GREEN}14`.
+- Theme plumbing: `ThemeProvider`/`useTheme()` in `apps/web/src/providers/theme-provider.tsx`; persisted to localStorage key `eventmind-theme`; a no-flash `<head>` script in `layout.tsx` sets `data-theme` before first paint.
+- **Dark palette is "warm green-black".** To switch to neutral dark-gray, uncomment the `.dark-gray alternate` block inside the `[data-theme="dark"]` rule in `globals.css` — no component edits needed.
+- **Intentionally left fixed (not themed):** `Footer.tsx` (deep-green block), `HeroCarousel` letterbox, and semantic accent colours (badge reds/oranges/blues, star gold, error red, status green/amber, Google/Facebook brand colours).
+
 ### Typography
 
-- **Outfit** — primary font for all pages, loaded via `next/font/google` in `layout.tsx`.
-- **Roboto** — loaded in `EventsCarousel.tsx` via `next/font/google`, applied to both `EventCardItem` (offline) and `OnlineEventCard` body sections. Do not use elsewhere without approval.
+**Single-font architecture (one source of truth).** The whole app uses **one font by default** — currently **Roboto** — loaded exactly once in `layout.tsx` and exposed as the CSS variable `--font-app`. `globals.css` maps that variable to the `body` font-family and to Tailwind's `--font-sans` token, so every page and component inherits it automatically. There are **no per-component font declarations** — do not re-import a font in a component or set `fontFamily` inline.
 
-Do not introduce additional fonts without explicit approval.
+**To swap the font** (e.g. Roboto → Inter): change only the two marked lines in `layout.tsx` — the `next/font/google` import and the loader call (`Roboto({ … })` → `Inter({ … })`). Keep `variable: "--font-app"` unchanged. Nothing else needs to touch.
+
+Do not introduce a second font without explicit approval. If a component genuinely needs to opt out, it should reference its own scoped font, but the default for everything is `--font-app`.
+
+**Font-size floor: 15px minimum.** No text renders below **15px** anywhere. A single rule in `globals.css` raises `text-xs` (12px), `text-sm` (14px), and arbitrary `text-[9px]`…`text-[14px]` to `15px !important`; sizes already ≥15px are untouched. This gives the site a comfortable, Talk_to_file-like scale (their effective minimum was ~14–15px). This is safe because the app uses no responsive text scaling (no `md:text-*` etc.) — if you ever add responsive size-ups from a small base, revisit the `!important`. To change the minimum site-wide, edit the single `font-size` value in that rule. Do not add new sub-15px font sizes.
+
+**Prominent-copy scale (above the floor).** So key copy doesn't sit at the 15px minimum, these use fixed sizes: a **page subtitle** (the `<p>` under a page `<h1>`) is **18px**; an **empty-state heading** is **18px** and its **helper line** is **16px**. Applied consistently across Explore, Organizer console, My Events, Create Event, Onboarding, Create Community, and Community detail. Follow this on new pages. Card type is exempt (see below).
+
+**Opt-out via `data-keep-type`.** An element (and its subtree) carrying the `data-keep-type` attribute is exempt from the floor, so components with deliberately small, hand-tuned type keep it. Currently only [`EventCard.tsx`](frontend_react/apps/web/src/components/EventCard.tsx) uses it (its 11/12/14px type is intentional and must not change). The event/community **carousels** already use no sub-15px type, so they need no marker and the floor never affects them. Add `data-keep-type` to any future card whose small type must be preserved.
+
+### Known design inconsistencies (open)
+
+Found during the `/event/[id]` hero work. **Not yet fixed — do not assume these are intentional.** Agreed with Gautham to tackle the icon unification as a separate task.
+
+1. **Three different icon sets for the same concepts.** Date/time/location are drawn three ways:
+   - `EventsCarousel.tsx` — `CalendarIcon` (filled, `viewBox 0 0 1024 1024`), `LocationPinIcon` (filled teardrop), plus a *fourth* `PinIcon` (different again) used elsewhere in the same file.
+   - `event/[id]/page.tsx` — outline heroicons (`stroke`, 22px, green) in the booking card.
+   - `EventCard.tsx` — outline heroicons at 12px.
+   → Pick ONE set and apply it everywhere. This is the next scheduled design task.
+2. **`components/EventCard.tsx` is dead code.** Nothing imports it. The card actually rendered on home / `/explore` / `/community/[slug]` is `EventCardItem`, exported from `EventsCarousel.tsx` — a confusingly similar name. `EventCard.tsx` is the only remaining consumer of `components/ShareButton.tsx`, so **that file is effectively dead too**. Both are candidates for deletion; confirm with Gautham first.
+3. **Two of the six badge types are dead for real data.** `BADGE_CONFIG` defines `today` and `recommended`, but `toCarouselEvent()` only ever emits `sold-out`, `selling-fast`, `this-week`, `free`. Nothing else produces `badgeTypes`, so **a real event can never be tagged Today or Recommended** — those two only appear on the hardcoded sample array inside `EventsCarousel.tsx`. Consequence: the **"Recommended" filter tab** on the home page filters on `badgeTypes?.includes('recommended')`, so it cannot match a live event. Either emit the tags from `toCarouselEvent` (needs a "recommended" signal from the backend) or drop the tab + config entries.
+4. **`CommunityCarousel.tsx` has its own copy of `BADGE_CONFIG`** (communities use a subset). Not merged with `EventBadges.tsx` because community badges are a different domain — but the colours are duplicated and will drift.
+5. **`CommunityCarousel.tsx` still has a decorative share button.** Its local `ShareButton` (two usages) only calls `preventDefault/stopPropagation` — it looks like a share control and does nothing. The equivalent bug on the event cards is now fixed via `EventActions.tsx`; the community cards need the same treatment (they need a community share flow, which does not exist yet).
+6. ~~**The `/event/[id]` category badge is a different shape to the status tags.**~~ **Resolved (decided, not changed):** the category tag stays `rounded-lg` while the status tags stay `rounded-full`. Gautham's call — the two now sit at opposite ends of the row (category left, status right) rather than adjacent, and the differing shape + softer colour family help signal "category" vs "status". Do not "fix" this.
+7. **Organiser name is hardcoded** to "EventMind Collective" on `/event/[id]` (see "What Is Not Built Yet").
+8. **`/event/[id]` is not responsive below the hero.** The main grid is a fixed `gridTemplateColumns: "2.4fr 1fr"` with no breakpoint, and the page uses a flat `px-12` instead of the standard `px-4 sm:px-6 lg:px-12`. On a phone the booking card overflows the viewport. Pre-existing; the hero itself is responsive.
 
 ### Hover states (navbar and interactive elements)
 On hover: background → `#184E4A`, text/icon → `#F2EFEA`. This pattern is used throughout the navbar, all dropdown items, and event cards. Maintain it for any new interactive elements.
@@ -458,7 +539,7 @@ Summary of working pages:
 |---|---|
 | `/` | Discovery page — hero carousel, city-based EventsCarousel + CommunityCarousel (API-driven), Footer |
 | `/auth` | Login / register toggle — two-column layout (hero panel on `lg+`, form-only on mobile), Google/Facebook buttons (disabled, "Coming soon") |
-| `/event/[id]` | Event detail — description, reviews with star ratings, sticky booking bar, auth guard |
+| `/event/[id]` | Event detail — **full-bleed hero** (edge-to-edge event photo under a dark scrim, no side gutters, no corner radius) with a back button top-left, wishlist + share top-right, and a **centre-aligned, always-one-line** title; on the line below it the **category tag sits left** and **every status tag that applies sits right** (Free / Selling Fast / This Week / Sold Out — rendered by `EventBadges.tsx`, so a tag is identical to the one on a card); then description, reviews with star ratings, booking card, sticky booking bar, auth guard. **Date/time/location live in the booking card, not the hero.** All three round controls (back / wishlist / share) come from `EventActions.tsx` at `size="lg"`, so they match the event cards and each other. The category tag is a per-category colour from `EventBadges.tsx` (no longer terracotta). Main grid is `2.4fr 1fr` (not `2fr`) to pull the booking card right while keeping its right edge on the shared px-12 line. **One-line title:** `heroTitleSize()` in `page.tsx` scales the font down as the title gets longer (`clamp(20px, min(5, 169/chars)vw, 64px)`) and the `h1` is `whitespace-nowrap`; `overflow-hidden`+ellipsis is the last-resort guard so a pathological title clips instead of wrapping or forcing a horizontal page scroll. Verified 1-line for the seeded titles at 1440px. |
 | `/checkout/[id]` | Checkout — order summary + payment; free events skip card form (800ms fake delay); paid events use Stripe intent (2s fake delay); success modal → `/dashboard` |
 | `/dashboard` | User dashboard — 3 tabs: My Tickets (QR codes via qrserver.com), My Wishlist, Networking Profile (hardcoded interests) |
 | `/organizer` | Organiser console — 3 stat cards (Active Events real, Revenue + Attendees mocked), events table |
@@ -509,7 +590,7 @@ Read the full breakdown in `Eventmind_files/REACT_MIGRATION.md` under "What Is N
 - **Help page** — link present, no page.
 - **Real ticket issuance** — tickets saved to Zustand/localStorage only, not to the database.
 - **Social login** — buttons present but disabled.
-- **SEO metadata** — event pages need `generateMetadata()` for Google indexing.
+- **SEO metadata** — event pages now have `generateMetadata()` + OG/story share images (see "Event sharing" above). Other dynamic routes (`/community/[slug]`, etc.) still need their own `generateMetadata()`.
 - **Mobile app** — monorepo is structured for it (`apps/mobile`), not started yet.
 - **Event image/banner upload** — the schema now has an `image_url` column (populated for synced Ticketmaster events). Native organiser upload (file → storage → `image_url`) is still not wired up; the create form has no image field yet.
 - **Ticket tiers** — backend only supports a single price per event; multi-tier (Free/Standard/VIP) needs schema changes.
@@ -562,7 +643,7 @@ When you complete work in a session:
 3. **Keep `Eventmind_files/REACT_MIGRATION.md` current** — update the "Pages Built" table and "What Is Not Built Yet" section as features are completed.
 4. **Update the Component Registry above** — whenever a component is created or its purpose changes significantly.
 5. **Run `pnpm --filter @eventmind/web type-check` before finishing** — all changes must be type-error free. This is non-negotiable.
-6. **Match the brand palette exactly** — do not introduce new colours or fonts without approval. Approved fonts: Outfit (global), DM Sans (online event cards only).
+6. **Match the brand palette exactly** — do not introduce new colours or fonts without approval. The app uses a single font (currently Roboto) defined once in `layout.tsx` as `--font-app`; everything inherits it. See the Typography section.
 7. **Test in the browser** — for UI changes, run the dev server and visually verify the change before reporting it done. Type-checking does not catch visual bugs.
 8. **Keep Node.js at v20+** — the project `.nvmrc` pins 24.16.0. If you use nvm, run `nvm use` inside `frontend_react/` to switch automatically.
 9. **Do not commit `.env.local` or `start.bat`** — both are in `.gitignore`. Never commit secrets or local environment files.
