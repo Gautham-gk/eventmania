@@ -3,10 +3,8 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Roboto } from 'next/font/google'
 import { useWishlistStore } from '@eventmind/store'
-
-const roboto = Roboto({ subsets: ['latin'], style: ['normal', 'italic'] })
+import { BRAND } from '@/lib/theme'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,12 +38,13 @@ export interface CommunityCarouselProps {
 
 // ─── Brand constants ───────────────────────────────────────────────────────────
 
-const GREEN = '#184E4A'
-const LINEN = '#F2EFEA'
-const BORDER = '#E2DDD5'
-const TEXT = '#111827'
-const MUTED = '#9CA3AF'
-const NAV_BORDER = '#C8C1B8'
+const GREEN = BRAND.green
+const LINEN = BRAND.surface     // linen-as-background → surface
+const ON_GREEN = BRAND.onGreen  // linen-as-text-on-green → stays light-on-green
+const BORDER = BRAND.border
+const TEXT = BRAND.text
+const MUTED = BRAND.hint
+const NAV_BORDER = BRAND.navBorder
 
 const BADGE_CONFIG = {
   'free': { bg: '#DC2626', text: '#F2EFEA', label: 'Free' },
@@ -426,7 +425,7 @@ export function CommunityCardItem({
       href={`/community/${community.id}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`${roboto.className} relative rounded-2xl overflow-hidden flex flex-col`}
+      className="relative rounded-2xl overflow-hidden flex flex-col"
       style={{
         backgroundColor: LINEN,
         boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
@@ -468,7 +467,7 @@ export function CommunityCardItem({
             {community.logoUrl ? (
               <Image src={community.logoUrl} alt="" fill className="object-cover" sizes="48px" />
             ) : (
-              <span className="text-[20px] font-bold select-none" style={{ color: LINEN }}>
+              <span className="text-[20px] font-bold select-none" style={{ color: ON_GREEN }}>
                 {community.title.charAt(0).toUpperCase()}
               </span>
             )}
@@ -508,7 +507,7 @@ export function CommunityCardItem({
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
               backgroundColor: community.isSoldOut ? MUTED : GREEN,
-              color: LINEN,
+              color: ON_GREEN,
               cursor: community.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
@@ -537,7 +536,7 @@ function OnlineCommunityCard({
       href={`/community/${community.id}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`${roboto.className} relative rounded-2xl overflow-hidden flex flex-col`}
+      className="relative rounded-2xl overflow-hidden flex flex-col"
       style={{
         backgroundColor: LINEN,
         boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
@@ -580,7 +579,7 @@ function OnlineCommunityCard({
             {community.logoUrl ? (
               <Image src={community.logoUrl} alt="" fill className="object-cover" sizes="48px" />
             ) : (
-              <span className="text-[20px] font-bold select-none" style={{ color: LINEN }}>
+              <span className="text-[20px] font-bold select-none" style={{ color: ON_GREEN }}>
                 {community.title.charAt(0).toUpperCase()}
               </span>
             )}
@@ -620,7 +619,7 @@ function OnlineCommunityCard({
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
               backgroundColor: community.isSoldOut ? MUTED : GREEN,
-              color: LINEN,
+              color: ON_GREEN,
               cursor: community.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
@@ -697,7 +696,7 @@ function OnlineCommunitiesRow({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: '#F2EFEA', border: `1.5px solid ${GREEN}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
                     : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
                 }
               >
@@ -744,7 +743,7 @@ function SeeAllTile({ communities, href }: { communities: CommunityItem[]; href:
   const placeholders = Math.max(0, 4 - previews.length)
 
   const tileBg = hovered ? GREEN : LINEN
-  const labelFg = hovered ? LINEN : TEXT
+  const labelFg = hovered ? ON_GREEN : TEXT
 
   return (
     <Link
@@ -806,7 +805,7 @@ function LocationPinIcon({ color = TEXT }: { color?: string }) {
   return (
     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
       <path fill={color} d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-      <circle cx="12" cy="9" r="2.6" fill="#F2EFEA" />
+      <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
     </svg>
   )
 }
@@ -851,7 +850,7 @@ export function CommunityCarousel({
   const visible = showSeeAll ? filtered.slice(0, GRID_LIMIT - 1) : filtered
 
   return (
-    <section aria-label={`Communities in ${location}`} className={`${roboto.className} py-8`}>
+    <section aria-label={`Communities in ${location}`} className="py-8">
 
       {/* ── Section header ── */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-5">
@@ -888,7 +887,7 @@ export function CommunityCarousel({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: '#F2EFEA', border: `1.5px solid ${GREEN}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
                     : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
                 }
               >

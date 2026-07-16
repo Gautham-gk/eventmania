@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { eventsApi, communitiesApi, recommendationsApi } from "@eventmind/api";
+import { recommendationsApi } from "@eventmind/api";
+import { eventsSource, communitiesSource, isDummyMode } from "@/lib/data-source";
 import { useLocationStore, DEFAULT_CITY, isOnlineCity } from "@eventmind/store";
 import type { Event } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
@@ -65,32 +66,33 @@ function DiscoveryPage() {
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["events", q, selectedCity.name],
     queryFn: () =>
-      eventsApi
+      eventsSource
         .search({ q, lat: selectedCity.lat, lng: selectedCity.lng, radius: RADIUS_KM })
         .then((r) => r.data),
   });
 
   const { data: communities, isLoading: communitiesLoading } = useQuery({
     queryKey: ["communities", q, selectedCity.name],
-    queryFn: () => communitiesApi.search({ q, city: selectedCity.name }).then((r) => r.data),
+    queryFn: () => communitiesSource.search({ q, city: selectedCity.name }).then((r) => r.data),
   });
 
   // Online events are location-independent (stored at lat/lng 0,0), so the city-radius
   // query above filters them out. Fetch them separately so the "Online Events" row fills.
   const { data: onlineEvents, isLoading: onlineLoading } = useQuery({
     queryKey: ["events", "online", q],
-    queryFn: () => eventsApi.search({ q, category: "online", limit: 24 }).then((r) => r.data),
+    queryFn: () => eventsSource.search({ q, category: "online", limit: 24 }).then((r) => r.data),
   });
 
   // Likewise online communities are city-independent — fetch separately so the
   // "Online Communities" row fills regardless of the selected city.
   const { data: onlineCommunities, isLoading: onlineCommLoading } = useQuery({
     queryKey: ["communities", "online", q],
-    queryFn: () => communitiesApi.search({ q, category: "online" }).then((r) => r.data),
+    queryFn: () => communitiesSource.search({ q, category: "online" }).then((r) => r.data),
   });
 
   // Auto-ingest events for the selected city from Ticketmaster (once per city, ever).
   useEffect(() => {
+    if (isDummyMode) return; // dummy mode serves local fixtures — never hit the ingestion backend
     if (!hasHydrated || q) return;
     if (isOnlineCity(selectedCity)) return; // "Online" is not a geographic city — nothing to ingest
     if (inProgressRef.current.has(selectedCity.name)) return;
@@ -135,7 +137,7 @@ function DiscoveryPage() {
     .map(toCommunityItem);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
       <HeroCarousel />
 

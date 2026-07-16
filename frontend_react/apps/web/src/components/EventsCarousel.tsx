@@ -3,10 +3,9 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Roboto } from 'next/font/google'
-import { useWishlistStore } from '@eventmind/store'
-
-const roboto = Roboto({ subsets: ['latin'], style: ['normal', 'italic'] })
+import { BRAND } from '@/lib/theme'
+import { EventShareButton, EventWishlistButton } from './EventActions'
+import { EventBadges, type BadgeType } from './EventBadges'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,7 +18,7 @@ export interface CarouselEvent {
   price: string
   imageUrl: string
   badge?: string
-  badgeTypes?: Array<'free' | 'selling-fast' | 'today' | 'sold-out' | 'this-week' | 'recommended'>
+  badgeTypes?: BadgeType[]
   startDate?: string
   rating?: number
   reviewCount?: number
@@ -42,21 +41,16 @@ export interface EventsCarouselProps {
 
 // ─── Brand constants ───────────────────────────────────────────────────────────
 
-const GREEN = '#184E4A'
-const LINEN = '#F2EFEA'
-const BORDER = '#E2DDD5'
-const TEXT = '#111827'
-const MUTED = '#9CA3AF'
-const NAV_BORDER = '#C8C1B8'
+const GREEN = BRAND.green
+const LINEN = BRAND.surface     // linen-as-background → surface
+const ON_GREEN = BRAND.onGreen  // linen-as-text-on-green → stays light-on-green
+const BORDER = BRAND.border
+const TEXT = BRAND.text
+const MUTED = BRAND.hint
+const NAV_BORDER = BRAND.navBorder
 
-const BADGE_CONFIG = {
-  'free': { bg: '#DC2626', text: '#F2EFEA', label: 'Free' },
-  'selling-fast': { bg: '#D97706', text: '#F2EFEA', label: 'Selling Fast' },
-  'today': { bg: '#2563EB', text: '#F2EFEA', label: 'Today' },
-  'this-week': { bg: '#F59E0B', text: '#F2EFEA', label: 'This Week' },
-  'recommended': { bg: '#7C3AED', text: '#F2EFEA', label: 'Recommended' },
-  'sold-out': { bg: '#6B7280', text: '#F2EFEA', label: 'Sold Out' },
-} as const
+// Badge colours/labels + the pill itself now live in ./EventBadges so the cards
+// and the /event/[id] hero render an identical tag. Import; do not re-create.
 
 const FILTER_TABS = ['All', 'Recommended', 'This Week', 'Free', 'Music', 'Food']
 const ONLINE_FILTER_TABS = ['All', 'Recommended', 'Free', 'This Week', 'Selling Fast']
@@ -386,98 +380,8 @@ function SkeletonCard() {
   )
 }
 
-// ─── Share button ─────────────────────────────────────────────────────────────
-
-function ShareButton() {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-        aria-label="Share event"
-        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-        style={{ backgroundColor: '#F2EFEA' }}
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
-          stroke={hovered ? GREEN : MUTED} strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round"
-            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-        </svg>
-      </button>
-      {hovered && (
-        <span
-          className="text-[16px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: '#F2EFEA', color: GREEN }}
-        >
-          Share
-        </span>
-      )}
-    </div>
-  )
-}
-
-// ─── Heart / favourite button ──────────────────────────────────────────────────
-
-function HeartButton({ event }: { event: CarouselEvent }) {
-  const toggle = useWishlistStore((s) => s.toggleItem)
-  const liked = useWishlistStore((s) => s.items.some((i) => i.id === event.id))
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <div className="flex items-center gap-1.5">
-      {(hovered || liked) && (
-        <span
-          className="text-[16px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: '#F2EFEA', color: GREEN }}
-        >
-          {liked ? 'Added!' : 'Add to wishlist'}
-        </span>
-      )}
-      <button
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          toggle({
-            kind: 'event',
-            id: event.id,
-            title: event.title,
-            date: event.date,
-            time: event.time,
-            venue: event.venue,
-            price: event.price,
-            imageUrl: event.imageUrl,
-            badge: event.badge,
-            badgeType: event.badgeTypes?.[0],
-            isSoldOut: event.isSoldOut,
-            category: event.category,
-          })
-        }}
-        aria-label={liked ? 'Remove from wishlist' : 'Add to wishlist'}
-        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-        style={{ backgroundColor: '#F2EFEA' }}
-      >
-        <svg
-          className="w-4 h-4"
-          viewBox="0 0 24 24"
-          fill={liked ? GREEN : 'none'}
-          stroke={liked ? GREEN : '#9CA3AF'}
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
-          />
-        </svg>
-      </button>
-    </div>
-  )
-}
+// Share + wishlist controls now live in ./EventActions so the cards and the
+// /event/[id] hero share one definition. Import them; do not re-create them.
 
 // ─── Edit location button ─────────────────────────────────────────────────────
 
@@ -521,7 +425,8 @@ export function EventCardItem({
   onBookNow?: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const activeBadges = (event.badgeTypes ?? []).filter(t => t !== 'sold-out').map(t => BADGE_CONFIG[t])
+  // Sold-out is signalled by the greyed image + "Sold Out" button, not a pill.
+  const activeBadges = (event.badgeTypes ?? []).filter(t => t !== 'sold-out')
   const priceFg = event.isSoldOut ? MUTED : GREEN
 
   return (
@@ -529,7 +434,7 @@ export function EventCardItem({
       href={`/event/${event.id}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`${roboto.className} relative rounded-2xl overflow-hidden flex flex-col`}
+      className="relative rounded-2xl overflow-hidden flex flex-col"
       style={{
         backgroundColor: LINEN,
         boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
@@ -547,17 +452,13 @@ export function EventCardItem({
           className="object-cover"
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><ShareButton /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><HeartButton event={event} /></div>
-        {activeBadges.length > 0 && !event.isSoldOut && (
-          <div className={`absolute bottom-2 left-2 flex gap-1.5 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-            {activeBadges.map((cfg) => (
-              <span key={cfg.label} className="px-2.5 py-1 rounded-full text-[16px] font-bold"
-                style={{ backgroundColor: cfg.bg, color: cfg.text }}>
-                {cfg.label}
-              </span>
-            ))}
-          </div>
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton event={event} /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton event={event} /></div>
+        {!event.isSoldOut && (
+          <EventBadges
+            types={activeBadges}
+            className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+          />
         )}
       </div>
 
@@ -607,7 +508,7 @@ export function EventCardItem({
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
               backgroundColor: event.isSoldOut ? MUTED : GREEN,
-              color: LINEN,
+              color: ON_GREEN,
               cursor: event.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
@@ -629,7 +530,8 @@ function OnlineEventCard({
   onBookNow?: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const activeBadges = (event.badgeTypes ?? []).filter(t => t !== 'sold-out').map(t => BADGE_CONFIG[t])
+  // Sold-out is signalled by the greyed image + "Sold Out" button, not a pill.
+  const activeBadges = (event.badgeTypes ?? []).filter(t => t !== 'sold-out')
   const priceFg = event.isSoldOut ? MUTED : GREEN
 
   return (
@@ -637,7 +539,7 @@ function OnlineEventCard({
       href={`/event/${event.id}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`${roboto.className} relative rounded-2xl overflow-hidden flex flex-col`}
+      className="relative rounded-2xl overflow-hidden flex flex-col"
       style={{
         backgroundColor: LINEN,
         boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
@@ -656,21 +558,17 @@ function OnlineEventCard({
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
           style={{ transform: hovered ? 'scale(1.05)' : 'scale(1)', transition: 'transform 0.3s ease' }}
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><ShareButton /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><HeartButton event={event} /></div>
-        {activeBadges.length > 0 && !event.isSoldOut && (
-          <div className={`absolute bottom-2 left-2 flex gap-1.5 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-            {activeBadges.map((cfg) => (
-              <span key={cfg.label} className="px-2.5 py-1 rounded-full text-[16px] font-bold"
-                style={{ backgroundColor: cfg.bg, color: cfg.text }}>
-                {cfg.label}
-              </span>
-            ))}
-          </div>
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton event={event} /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton event={event} /></div>
+        {!event.isSoldOut && (
+          <EventBadges
+            types={activeBadges}
+            className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+          />
         )}
       </div>
 
-      {/* Card body — Roboto */}
+      {/* Card body */}
       <div className="p-3 flex flex-col gap-1.5 flex-1">
 
         {/* Title */}
@@ -716,7 +614,7 @@ function OnlineEventCard({
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
               backgroundColor: event.isSoldOut ? MUTED : GREEN,
-              color: LINEN,
+              color: ON_GREEN,
               cursor: event.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
@@ -793,7 +691,7 @@ function OnlineEventsRow({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: '#F2EFEA', border: `1.5px solid ${GREEN}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
                     : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
                 }
               >
@@ -840,7 +738,7 @@ function SeeAllTile({ events, href }: { events: CarouselEvent[]; href: string })
   const placeholders = Math.max(0, 4 - previews.length)
 
   const tileBg = hovered ? GREEN : LINEN
-  const labelFg = hovered ? LINEN : TEXT
+  const labelFg = hovered ? ON_GREEN : TEXT
   const subFg = hovered ? 'rgba(242,239,234,0.8)' : MUTED
 
   return (
@@ -928,7 +826,7 @@ function LocationPinIcon({ color = TEXT }: { color?: string }) {
   return (
     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
       <path fill={color} d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-      <circle cx="12" cy="9" r="2.6" fill="#F2EFEA" />
+      <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
     </svg>
   )
 }
@@ -976,7 +874,7 @@ export function EventsCarousel({
     : filteredEvents
 
   return (
-    <section aria-label={`Events in ${location}`} className={`${roboto.className} py-8`}>
+    <section aria-label={`Events in ${location}`} className="py-8">
 
       {/* ── Section header ── */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-5">
@@ -1013,7 +911,7 @@ export function EventsCarousel({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: '#F2EFEA', border: `1.5px solid ${GREEN}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
                     : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
                 }
               >
