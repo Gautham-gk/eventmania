@@ -7,6 +7,8 @@ import { eventsApi } from "@eventmind/api";
 import type { Event } from "@eventmind/types";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { formatPrice } from "@/lib/currency";
+import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
@@ -31,7 +33,7 @@ export default function OrganizerPage() {
       <Navbar />
 
       {/* ── Header ── */}
-      <div className="px-12 pt-10 pb-8 flex items-center justify-between">
+      <div className={`pt-10 pb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 ${GUTTERS}`}>
         <div>
           <h1 className="text-[28px] font-bold text-[var(--brand-text)]">Organizer Console</h1>
           <p className="text-[18px] text-[var(--brand-hint)] mt-1">Manage your events and track performance</p>
@@ -49,10 +51,15 @@ export default function OrganizerPage() {
         </div>
       </div>
 
-      <div className="px-12 pb-16 space-y-10">
+      <div className={`pb-16 space-y-10 ${GUTTERS}`}>
         {/* ── Stats ── */}
-        <div className="grid grid-cols-3 gap-6">
-          <StatCard label="Total Revenue" value="$12,450" icon={<RevenueIcon />} color="#22C55E" />
+        {/* Three across from sm up; a 375px phone gets them stacked rather than
+            three ~100px cards with the figures wrapping. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* Mocked figure (see "What Is Not Built Yet"). Rendered through
+              formatPrice in the platform default so it doesn't sit next to the
+              per-event revenue column in a different currency. */}
+          <StatCard label="Total Revenue" value={formatPrice(12450)} icon={<RevenueIcon />} color="#22C55E" />
           <StatCard label="Total Attendees" value="1,240" icon={<PeopleIcon />} color="#3B82F6" />
           <StatCard label="Active Events" value={String(events.filter(e => e.status === "published").length)} icon={<EventIcon />} color={GREEN} />
         </div>
@@ -74,7 +81,10 @@ export default function OrganizerPage() {
                 </button>
               </div>
             ) : (
-              <table className="w-full">
+              /* A six-column table has no honest narrow layout, so the table
+                 keeps its width and scrolls inside the card instead. */
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px]">
                 <thead>
                   <tr className="text-left text-xs font-bold text-[var(--brand-hint)] uppercase tracking-wide"
                     style={{ borderBottom: "1px solid var(--brand-border)" }}>
@@ -89,6 +99,7 @@ export default function OrganizerPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
@@ -101,7 +112,9 @@ export default function OrganizerPage() {
 
 function EventRow({ event, isLast }: { event: Event; isLast: boolean }) {
   const router = useRouter();
-  const revenue = (event.price * 120).toFixed(2);
+  // NOTE: still the mocked figure (a flat 120 sales), but at least rendered in
+  // the currency the organiser actually priced in rather than a hardcoded $.
+  const revenue = formatPrice(event.price * 120, event.currency, { decimals: true, freeLabel: null });
   const date = new Date(event.start_date).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
@@ -114,7 +127,7 @@ function EventRow({ event, isLast }: { event: Event; isLast: boolean }) {
       <td className="px-6 py-4 text-sm text-[var(--brand-hint)]">{date}</td>
       <td className="px-6 py-4"><StatusBadge status={event.status} /></td>
       <td className="px-6 py-4 text-sm text-[var(--brand-hint)]">120 / {event.capacity}</td>
-      <td className="px-6 py-4 text-sm font-semibold text-[var(--brand-text)]">${revenue}</td>
+      <td className="px-6 py-4 text-sm font-semibold text-[var(--brand-text)]">{revenue}</td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-1">
           <IconBtn title="Edit" onClick={() => {}}>

@@ -1,4 +1,5 @@
 import type { Event, Community } from "@eventmind/types";
+import { formatPrice } from "@/lib/currency";
 import type { CarouselEvent } from "@/components/EventsCarousel";
 import type { CommunityItem } from "@/components/CommunityCarousel";
 
@@ -41,13 +42,16 @@ export function toCarouselEvent(event: Event): CarouselEvent {
     date,
     time,
     venue,
-    price: isFree ? "Free" : `₹${price.toLocaleString("en-IN")} onwards`,
+    price: isFree ? "Free" : `${formatPrice(price, event.currency)} onwards`,
     imageUrl: `https://picsum.photos/seed/${event.id}/800/450`,
     badge: badgeTypes[0] ? LABELS[badgeTypes[0]] : undefined,
     badgeTypes: badgeTypes.length ? badgeTypes : undefined,
     isSoldOut,
     startDate: event.start_date,
     category: event.category.toLowerCase(),
+    // Format, carried separately from category so an online event keeps its real
+    // category (Music, Technology, …) instead of being categorised as "online".
+    eventType: event.event_type,
   };
 }
 
@@ -77,7 +81,9 @@ export function toCommunityItem(community: Community): CommunityItem {
     date,
     time,
     venue,
-    price: isFree ? "Free" : `₹${price.toLocaleString("en-IN")}/month onwards`,
+    // Communities have no currency column of their own — they are always
+    // native, so they take the platform default rather than a per-row code.
+    price: isFree ? "Free" : `${formatPrice(price)}/month onwards`,
     memberCount,
     imageUrl: `https://picsum.photos/seed/${community.id}/800/450`,
     badge: isFree ? "Free" : undefined,

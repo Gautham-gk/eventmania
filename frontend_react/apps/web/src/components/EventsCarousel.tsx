@@ -3,9 +3,11 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { isOnlineEvent } from '@eventmind/types'
 import { BRAND } from '@/lib/theme'
 import { EventShareButton, EventWishlistButton } from './EventActions'
-import { EventBadges, type BadgeType } from './EventBadges'
+import { CardTagRow, type BadgeType } from './EventBadges'
+import { CalendarIcon, ClockIcon, LocationPinIcon } from './EventIcons'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,8 +26,32 @@ export interface CarouselEvent {
   reviewCount?: number
   isSoldOut?: boolean
   category: string
+  /**
+   * Event FORMAT — "In-Person" | "Online" | "Hybrid". Orthogonal to `category`:
+   * an online event still carries a real category, so never test this by looking
+   * for `category === 'online'`. Use inOnlineRow/inCityRow below.
+   */
+  eventType?: string
   organiser?: string
 }
+
+// Which row(s) an event belongs in. A Hybrid event appears in BOTH — it is
+// attendable either way.
+//
+// The `category === 'online'` fallback is for DB rows written before the format
+// split, which carry the default event_type "In-Person" alongside category
+// "online". Measured 2026-07-19: 6 such rows in platform_dev.db — deleting the
+// fallback drops them out of the Online row entirely. Re-run seed_events.py
+// (it wipes and re-inserts), confirm the query below returns 0, then delete both
+// fallbacks here and in isOnlineEvent():
+//   select count(*) from events
+//    where lower(category)='online'
+//      and lower(coalesce(event_type,'')) not in ('online','hybrid');
+const inOnlineRow = (e: CarouselEvent) =>
+  e.eventType ? isOnlineEvent({ event_type: e.eventType }) : e.category === 'online'
+
+const inCityRow = (e: CarouselEvent) =>
+  e.eventType ? e.eventType.toLowerCase() !== 'online' : e.category !== 'online'
 
 export interface EventsCarouselProps {
   events: CarouselEvent[]
@@ -47,7 +73,14 @@ const ON_GREEN = BRAND.onGreen  // linen-as-text-on-green → stays light-on-gre
 const BORDER = BRAND.border
 const TEXT = BRAND.text
 const MUTED = BRAND.hint
+// Sold-out button FILL. Deliberately not MUTED: --brand-hint is the brand text
+// colour now, so reusing it here would paint a near-black button in light mode.
+// A disabled control has to read as gray.
+const MUTED_FILL = BRAND.muted
 const NAV_BORDER = BRAND.navBorder
+// Outline CONTROLS (the filter tabs) — deliberately far darker than BORDER so a
+// tab cannot blend into the linen page. Not for cards: see SeeAllTile.
+const CONTROL_BORDER = BRAND.controlBorder
 
 // Badge colours/labels + the pill itself now live in ./EventBadges so the cards
 // and the /event/[id] hero render an identical tag. Import; do not re-create.
@@ -55,310 +88,11 @@ const NAV_BORDER = BRAND.navBorder
 const FILTER_TABS = ['All', 'Recommended', 'This Week', 'Free', 'Music', 'Food']
 const ONLINE_FILTER_TABS = ['All', 'Recommended', 'Free', 'This Week', 'Selling Fast']
 
-// ─── Sample data ───────────────────────────────────────────────────────────────
-
-export const SAMPLE_EVENTS: CarouselEvent[] = [
-  {
-    id: 'evt-001',
-    title: 'Indie Music Night — Live at Kovalam Beach',
-    date: 'Sat, 14 Jun',
-    time: '7:00 PM',
-    venue: 'Kovalam Beach Amphitheatre',
-    organiser: 'EventMind Presents',
-    price: '₹499 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt001/800/450',
-    badge: 'Selling Fast',
-    badgeTypes: ['selling-fast'],
-    rating: 4.7,
-    reviewCount: 128,
-    category: 'music',
-  },
-  {
-    id: 'evt-002',
-    title: 'Kerala Street Food Festival 2025',
-    date: 'Sun, 15 Jun',
-    time: '11:00 AM',
-    venue: 'Central Stadium Grounds, Palayam',
-    organiser: 'Kerala Tourism Board',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt002/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.5,
-    reviewCount: 312,
-    category: 'food',
-  },
-  {
-    id: 'evt-003',
-    title: 'TechTVM — AI & Future of Work Summit',
-    date: 'Sat, 14 Jun',
-    time: '10:00 AM',
-    venue: 'Online (Zoom)',
-    organiser: 'TechTVM Community',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt003/800/450',
-    badge: 'Today',
-    badgeTypes: ['today'],
-    rating: 4.8,
-    reviewCount: 87,
-    category: 'online',
-  },
-  {
-    id: 'evt-004',
-    title: 'Morning Yoga & Meditation at Shanghumugham',
-    date: 'Sun, 15 Jun',
-    time: '6:30 AM',
-    venue: 'Shanghumugham Beach',
-    organiser: 'Wellness Kerala',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt004/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.3,
-    reviewCount: 59,
-    category: 'wellness',
-  },
-  {
-    id: 'evt-005',
-    title: 'Standup Comedy Showcase ft. Rahul Subramanian',
-    date: 'Fri, 13 Jun',
-    time: '8:00 PM',
-    venue: 'Casino Hotel, Wellington Island',
-    organiser: 'Laugh Track India',
-    price: '₹799 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt005/800/450',
-    badge: 'Sold Out',
-    badgeTypes: ['sold-out'],
-    isSoldOut: true,
-    rating: 4.9,
-    reviewCount: 254,
-    category: 'comedy',
-  },
-  {
-    id: 'evt-006',
-    title: 'Contemporary Art Walk — Kashi Gallery Fort Kochi',
-    date: 'Sat, 14 Jun',
-    time: '5:00 PM',
-    venue: 'Kashi Art Gallery, Fort Kochi',
-    organiser: 'Kashi Art Foundation',
-    price: '₹200 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt006/800/450',
-    rating: 4.3,
-    reviewCount: 44,
-    category: 'art',
-  },
-  {
-    id: 'evt-007',
-    title: 'Jazz & Blues Evening Under the Stars',
-    date: 'Sat, 14 Jun',
-    time: '6:00 PM',
-    venue: 'Taj Green Cove, Kovalam',
-    organiser: 'Taj Hotels Kerala',
-    price: '₹999 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt007/800/450',
-    badge: 'Selling Fast',
-    badgeTypes: ['selling-fast'],
-    rating: 4.6,
-    reviewCount: 91,
-    category: 'music',
-  },
-  {
-    id: 'evt-008',
-    title: 'Cloud Chef: Home Cook Battle — Virtual Edition',
-    date: 'Sun, 15 Jun',
-    time: '3:00 PM',
-    venue: 'Online (YouTube Live)',
-    organiser: 'Cloud Kitchen Network',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt008/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.2,
-    reviewCount: 38,
-    category: 'food',
-  },
-  {
-    id: 'evt-009',
-    title: 'Thiruvananthapuram Food Truck Meetup',
-    date: 'Sat, 14 Jun',
-    time: '12:00 PM',
-    venue: 'Technopark Phase I Gate',
-    organiser: 'Trivandrum Food Collective',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt009/800/450',
-    badge: 'Today',
-    badgeTypes: ['today'],
-    rating: 4.4,
-    reviewCount: 67,
-    category: 'food',
-  },
-  {
-    id: 'evt-010',
-    title: 'Full-Stack Dev Bootcamp — Weekend Cohort',
-    date: 'Sun, 15 Jun',
-    time: '9:00 AM',
-    venue: 'Online (Google Meet)',
-    organiser: 'CodeCraft Academy',
-    price: '₹1,299 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt010/800/450',
-    badge: 'Selling Fast',
-    badgeTypes: ['selling-fast'],
-    rating: 4.7,
-    reviewCount: 143,
-    category: 'online',
-  },
-  {
-    id: 'evt-011',
-    title: 'Kerala Fusion Kitchen — Masterclass with Chef Arun',
-    date: 'Sat, 14 Jun',
-    time: '4:00 PM',
-    venue: 'Vivanta Trivandrum',
-    organiser: 'Vivanta Culinary Arts',
-    price: '₹599 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt011/800/450',
-    rating: 4.5,
-    reviewCount: 72,
-    category: 'food',
-  },
-  {
-    id: 'evt-012',
-    title: 'Carnatic Music Evening — Sangeetha Sabha',
-    date: 'Sun, 15 Jun',
-    time: '5:30 PM',
-    venue: 'Tagore Theatre, Trivandrum',
-    organiser: 'Kerala Sangeetha Sabha',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt012/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.8,
-    reviewCount: 196,
-    category: 'music',
-  },
-  // ── Online events (10 total) ──
-  {
-    id: 'evt-013',
-    title: 'UX Design Fundamentals — Live Workshop',
-    date: 'Sat, 14 Jun',
-    time: '2:00 PM',
-    venue: 'Online (Zoom)',
-    organiser: 'Designify Studio',
-    price: '₹399 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt013/800/450',
-    badge: 'Selling Fast',
-    badgeTypes: ['selling-fast'],
-    rating: 4.6,
-    reviewCount: 83,
-    category: 'online',
-  },
-  {
-    id: 'evt-014',
-    title: 'Python for Data Science — Weekend Bootcamp',
-    date: 'Sun, 15 Jun',
-    time: '9:00 AM',
-    venue: 'Online (Google Meet)',
-    organiser: 'DataQuest Academy',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt014/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.7,
-    reviewCount: 215,
-    category: 'online',
-  },
-  {
-    id: 'evt-015',
-    title: 'Startup Pitch Night — Virtual Demo Day',
-    date: 'Fri, 13 Jun',
-    time: '7:00 PM',
-    venue: 'Online (YouTube Live)',
-    organiser: 'Kerala Startup Hub',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt015/800/450',
-    badge: 'Today',
-    badgeTypes: ['today'],
-    rating: 4.5,
-    reviewCount: 61,
-    category: 'online',
-  },
-  {
-    id: 'evt-016',
-    title: 'Mindful Living — Mental Wellness Webinar',
-    date: 'Sat, 14 Jun',
-    time: '11:00 AM',
-    venue: 'Online (Zoom)',
-    organiser: 'Mind Matters Collective',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt016/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.4,
-    reviewCount: 97,
-    category: 'online',
-  },
-  {
-    id: 'evt-017',
-    title: 'Photography Masterclass — Composition & Editing',
-    date: 'Sun, 15 Jun',
-    time: '3:00 PM',
-    venue: 'Online (Zoom)',
-    organiser: 'Lens & Light Academy',
-    price: '₹299 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt017/800/450',
-    rating: 4.3,
-    reviewCount: 52,
-    category: 'online',
-  },
-  {
-    id: 'evt-018',
-    title: 'React & Next.js Advanced Patterns',
-    date: 'Sat, 14 Jun',
-    time: '5:00 PM',
-    venue: 'Online (Discord Stage)',
-    organiser: 'ReactKerala Community',
-    price: '₹599 onwards',
-    imageUrl: 'https://picsum.photos/seed/evt018/800/450',
-    badge: 'Selling Fast',
-    badgeTypes: ['selling-fast'],
-    rating: 4.9,
-    reviewCount: 178,
-    category: 'online',
-  },
-  {
-    id: 'evt-019',
-    title: 'Entrepreneurship 101 — Free Webinar for Students',
-    date: 'Sun, 15 Jun',
-    time: '6:00 PM',
-    venue: 'Online (Zoom)',
-    organiser: 'Kerala Startup Ecosystem',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt019/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.2,
-    reviewCount: 134,
-    category: 'online',
-  },
-  {
-    id: 'evt-020',
-    title: 'Carnatic Classical — Online Intro Class',
-    date: 'Sat, 14 Jun',
-    time: '8:00 AM',
-    venue: 'Online (Google Meet)',
-    organiser: 'Bhajan & Beyond',
-    price: 'Free',
-    imageUrl: 'https://picsum.photos/seed/evt020/800/450',
-    badge: 'Free',
-    badgeTypes: ['free'],
-    rating: 4.6,
-    reviewCount: 44,
-    category: 'online',
-  },
-]
-
 // ─── Skeleton card ─────────────────────────────────────────────────────────────
 
-function SkeletonCard() {
+// Exported so the /event/[id] "Similar events" rail loads with the same
+// skeleton the grids use — a second hand-rolled one would drift.
+export function SkeletonCard() {
   return (
     <div
       className="rounded-2xl overflow-hidden animate-pulse"
@@ -452,14 +186,17 @@ export function EventCardItem({
           className="object-cover"
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton event={event} /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton event={event} /></div>
-        {!event.isSoldOut && (
-          <EventBadges
-            types={activeBadges}
-            className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
-          />
-        )}
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton item={event} /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton item={event} /></div>
+        {/* Category left, status tags right — the same pairing /event/[id] uses,
+            so a card and the page it opens read as the same event. A sold-out
+            card keeps its category but drops the status pills (sold-out is
+            signalled by the greyed image + the "Sold Out" button instead). */}
+        <CardTagRow
+          category={event.category}
+          types={event.isSoldOut ? undefined : activeBadges}
+          className={`absolute bottom-2 left-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        />
       </div>
 
       {/* Card body */}
@@ -470,24 +207,33 @@ export function EventCardItem({
           {event.title}
         </h3>
 
-        {/* Date + venue */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          <CalendarIcon color={TEXT} />
-          <span className="text-[18px] shrink-0" style={{ color: TEXT }}>
-            {event.date} · {event.time}
+        {/* Date + venue. Each glyph is bound tight to its own label (gap-[3px]) and the
+            pairs are spaced apart (gap-3.5), so the row reads as three fields
+            rather than six evenly-spaced things. */}
+        <div className="flex items-center gap-3.5 min-w-0">
+          <span className="flex items-center gap-[3px] shrink-0">
+            <CalendarIcon color={TEXT} />
+            <span className="text-[18px]" style={{ color: TEXT }}>
+              {event.date}
+            </span>
+          </span>
+          <span className="flex items-center gap-[3px] shrink-0">
+            <ClockIcon color={TEXT} />
+            <span className="text-[18px]" style={{ color: TEXT }}>
+              {event.time}
+            </span>
           </span>
           {event.venue && (
-            <>
-              <span className="text-[18px] shrink-0" style={{ color: TEXT }}>·</span>
+            <span className="flex items-center gap-[3px] min-w-0">
               <LocationPinIcon color={TEXT} />
               <span className="text-[18px] line-clamp-1 min-w-0" style={{ color: TEXT }}>
                 {event.venue}
               </span>
-            </>
+            </span>
           )}
         </div>
 
-        {/* Price (left) + Book Now button (right) */}
+        {/* Price (left) + View details button (right) */}
         <div className="flex items-center justify-between mt-auto pt-1.5 gap-2">
           <span style={{ color: priceFg }}>
             {event.isSoldOut ? (
@@ -503,16 +249,16 @@ export function EventCardItem({
           </span>
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBookNow?.(event.id) }}
-            aria-label={`Book ${event.title}`}
+            aria-label={`View details for ${event.title}`}
             disabled={event.isSoldOut}
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
-              backgroundColor: event.isSoldOut ? MUTED : GREEN,
+              backgroundColor: event.isSoldOut ? MUTED_FILL : GREEN,
               color: ON_GREEN,
               cursor: event.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
-            {event.isSoldOut ? 'Sold Out' : 'Book Now'}
+            {event.isSoldOut ? 'Sold Out' : 'View details'}
           </button>
         </div>
       </div>
@@ -558,14 +304,17 @@ function OnlineEventCard({
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
           style={{ transform: hovered ? 'scale(1.05)' : 'scale(1)', transition: 'transform 0.3s ease' }}
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton event={event} /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton event={event} /></div>
-        {!event.isSoldOut && (
-          <EventBadges
-            types={activeBadges}
-            className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
-          />
-        )}
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton item={event} /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton item={event} /></div>
+        {/* Category left, status tags right — the same pairing /event/[id] uses,
+            so a card and the page it opens read as the same event. A sold-out
+            card keeps its category but drops the status pills (sold-out is
+            signalled by the greyed image + the "Sold Out" button instead). */}
+        <CardTagRow
+          category={event.category}
+          types={event.isSoldOut ? undefined : activeBadges}
+          className={`absolute bottom-2 left-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        />
       </div>
 
       {/* Card body */}
@@ -576,24 +325,31 @@ function OnlineEventCard({
           {event.title}
         </h3>
 
-        {/* Date, time + venue in one row */}
-        <div className="flex items-center gap-1.5">
-          <CalendarIcon color={TEXT} />
-          <span className="text-[18px] shrink-0" style={{ color: TEXT }}>
-            {event.date} · {event.time}
+        {/* Date, time + venue in one row — same glyph/label pairing as EventCardItem */}
+        <div className="flex items-center gap-3.5 min-w-0">
+          <span className="flex items-center gap-[3px] shrink-0">
+            <CalendarIcon color={TEXT} />
+            <span className="text-[18px]" style={{ color: TEXT }}>
+              {event.date}
+            </span>
+          </span>
+          <span className="flex items-center gap-[3px] shrink-0">
+            <ClockIcon color={TEXT} />
+            <span className="text-[18px]" style={{ color: TEXT }}>
+              {event.time}
+            </span>
           </span>
           {event.venue && (
-            <>
-              <span className="text-[18px]" style={{ color: TEXT }}>·</span>
+            <span className="flex items-center gap-[3px] min-w-0">
               <VideoCallIcon color={TEXT} />
-              <span className="text-[18px] line-clamp-1" style={{ color: TEXT }}>
+              <span className="text-[18px] line-clamp-1 min-w-0" style={{ color: TEXT }}>
                 {event.venue}
               </span>
-            </>
+            </span>
           )}
         </div>
 
-        {/* Price (left) + Book Now button (right) */}
+        {/* Price (left) + View details button (right) */}
         <div className="flex items-center justify-between mt-auto pt-1.5 gap-2">
           <span style={{ color: priceFg }}>
             {event.isSoldOut ? (
@@ -609,16 +365,16 @@ function OnlineEventCard({
           </span>
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBookNow?.(event.id) }}
-            aria-label={`Book ${event.title}`}
+            aria-label={`View details for ${event.title}`}
             disabled={event.isSoldOut}
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
-              backgroundColor: event.isSoldOut ? MUTED : GREEN,
+              backgroundColor: event.isSoldOut ? MUTED_FILL : GREEN,
               color: ON_GREEN,
               cursor: event.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
-            {event.isSoldOut ? 'Sold Out' : 'Book Now'}
+            {event.isSoldOut ? 'Sold Out' : 'View details'}
           </button>
         </div>
       </div>
@@ -640,7 +396,7 @@ function OnlineEventsRow({
   isLoading?: boolean
 }) {
   const [activeTab, setActiveTab] = useState('All')
-  const onlineEvents = events.filter((e) => e.category === 'online')
+  const onlineEvents = events.filter(inOnlineRow)
 
   const filteredOnline: CarouselEvent[] = (() => {
     if (activeTab === 'All') return onlineEvents
@@ -662,13 +418,13 @@ function OnlineEventsRow({
     <section aria-label="Online Events" className="pb-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-4">
-        <h2 className="font-extrabold tracking-[-0.5px]" style={{ fontSize: "clamp(22px, 4vw, 30px)", color: TEXT }}>
+        <h2 className="font-extrabold tracking-[-0.5px]" style={{ fontSize: "clamp(18px, 4vw, 30px)", color: TEXT }}>
           Online Events
         </h2>
         <Link
           href={seeAllHref}
           aria-label="View all online events"
-          className="flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
+          className="hidden sm:flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
           style={{ color: GREEN }}
         >
           View all
@@ -691,8 +447,8 @@ function OnlineEventsRow({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
-                    : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }
+                    : { backgroundColor: 'transparent', color: TEXT, border: `2px solid ${CONTROL_BORDER}` }
                 }
               >
                 {tab}
@@ -750,11 +506,15 @@ function SeeAllTile({ events, href }: { events: CarouselEvent[]; href: string })
       className="rounded-2xl flex flex-col items-center justify-center gap-5"
       style={{
         backgroundColor: tileBg,
-        border: `1px solid ${NAV_BORDER}`,
+        // Borderless at rest, exactly like EventCardItem — this tile IS a card in
+        // the same grid, so an outline of its own made it read as a different kind
+        // of thing. The 2px transparent border holds the space the green hover
+        // border will occupy, so the tile never resizes on hover.
+        border: hovered ? `2px solid ${GREEN}` : '2px solid transparent',
         minHeight: 240,
-        boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.04)',
+        boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
         transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.15s ease',
+        transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.15s ease',
       }}
     >
       {/* 2×2 preview grid */}
@@ -790,43 +550,10 @@ function SeeAllTile({ events, href }: { events: CarouselEvent[]; href: string })
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
 
-function CalendarIcon({ color = TEXT }: { color?: string }) {
-  return (
-    <svg className="w-4 h-4 shrink-0" viewBox="0 0 1024 1024" fill={color}>
-      <path d="M960 95.888l-256.224.001V32.113c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76h-256v-63.76c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76H64c-35.344 0-64 28.656-64 64v800c0 35.343 28.656 64 64 64h896c35.344 0 64-28.657 64-64v-800c0-35.329-28.656-63.985-64-63.985zm0 863.985H64v-800h255.776v32.24c0 17.679 14.32 32 32 32s32-14.321 32-32v-32.224h256v32.24c0 17.68 14.32 32 32 32s32-14.32 32-32v-32.24H960v799.984zM736 511.888h64c17.664 0 32-14.336 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32zm0 255.984h64c17.664 0 32-14.32 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.696 14.336 32 32 32zm-192-128h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32zm0-255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm-256 0h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm0 255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32z" />
-    </svg>
-  )
-}
-
-function PinIcon({ color = MUTED }: { color?: string }) {
-  return (
-    <svg
-      className="w-3 h-3 shrink-0"
-      style={{ color }}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-    </svg>
-  )
-}
-
 function StarIcon({ color = '#F59E0B' }: { color?: string }) {
   return (
     <svg className="w-3 h-3" style={{ color }} viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
-    </svg>
-  )
-}
-
-function LocationPinIcon({ color = TEXT }: { color?: string }) {
-  return (
-    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-      <path fill={color} d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-      <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
     </svg>
   )
 }
@@ -854,7 +581,7 @@ export function EventsCarousel({
 }: EventsCarouselProps) {
   const [activeTab, setActiveTab] = useState('All')
 
-  const offlineEvents = events.filter((e) => e.category !== 'online')
+  const offlineEvents = events.filter(inCityRow)
 
   const filteredEvents: CarouselEvent[] = (() => {
     if (activeTab === 'All') return offlineEvents
@@ -878,7 +605,7 @@ export function EventsCarousel({
 
       {/* ── Section header ── */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-5">
-        <h2 className="font-extrabold tracking-[-0.5px] flex items-center gap-1" style={{ fontSize: "clamp(22px, 4vw, 30px)", color: TEXT }}>
+        <h2 className="font-extrabold tracking-[-0.5px] flex items-center gap-1" style={{ fontSize: "clamp(18px, 4vw, 30px)", color: TEXT }}>
           Events in{' '}
           <span className="relative inline-flex items-center gap-2">
             <span style={{ color: GREEN }}>{location}</span>
@@ -888,7 +615,7 @@ export function EventsCarousel({
         <Link
           href={seeAllHref}
           aria-label={`View all events in ${location}`}
-          className="flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
+          className="hidden sm:flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
           style={{ color: GREEN }}
         >
           View all
@@ -911,8 +638,8 @@ export function EventsCarousel({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
-                    : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }
+                    : { backgroundColor: 'transparent', color: TEXT, border: `2px solid ${CONTROL_BORDER}` }
                 }
               >
                 {tab}
@@ -930,9 +657,11 @@ export function EventsCarousel({
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3" style={{ color: MUTED }}>
-            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25" />
+            <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} role="img" aria-label="Sad face">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="9" cy="10" r="1" fill="currentColor" stroke="none" />
+              <circle cx="15" cy="10" r="1" fill="currentColor" stroke="none" />
+              <path strokeLinecap="round" d="M8.5 16c.9-1.2 2.1-1.8 3.5-1.8s2.6.6 3.5 1.8" />
             </svg>
             <p className="text-lg">No events in this category yet.</p>
           </div>
@@ -950,10 +679,3 @@ export function EventsCarousel({
     </section>
   )
 }
-
-// ─── Usage example ─────────────────────────────────────────────────────────────
-// <EventsCarousel
-//   events={SAMPLE_EVENTS}
-//   location="Thiruvananthapuram"
-//   seeAllHref="/events/thiruvananthapuram"
-// />

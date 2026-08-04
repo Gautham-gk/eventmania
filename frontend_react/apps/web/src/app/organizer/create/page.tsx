@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { eventsApi, organizerApi, communityApi } from "@eventmind/api";
 import { useAuthStore, CITIES } from "@eventmind/store";
 import type { City } from "@eventmind/store";
-import type { Community } from "@eventmind/types";
+import type { Community, CurrencyCode } from "@eventmind/types";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
+import { currencySymbol } from "@/lib/currency";
+import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
@@ -63,6 +66,7 @@ export default function CreateEventPage() {
   // Tickets
   const [capacity, setCapacity] = useState("100");
   const [price, setPrice] = useState("0");
+  const [currency, setCurrency] = useState<CurrencyCode>(DEFAULT_CURRENCY);
 
   // Community
   const [community, setCommunity] = useState<Community | null>(null);
@@ -154,6 +158,7 @@ export default function CreateEventPage() {
         end_date: new Date(endDate).toISOString(),
         capacity: parseInt(capacity) || 100,
         price: parseFloat(price) || 0,
+        currency,
         status: mode === "publish" ? "published" : "draft",
       });
 
@@ -172,13 +177,13 @@ export default function CreateEventPage() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-3xl mx-auto">
+      <div className={`py-10 max-w-3xl mx-auto ${GUTTERS}`}>
         {/* Header */}
         <div className="flex items-center gap-4 mb-10">
           <button
             onClick={() => router.back()}
             className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)" }}
+            style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)" }}
           >
             <svg className="w-4 h-4" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -204,7 +209,7 @@ export default function CreateEventPage() {
               />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <FormField label="Category">
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls(false)}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -219,7 +224,7 @@ export default function CreateEventPage() {
             </div>
 
             <FormField label="Event Type">
-              <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid var(--brand-border)" }}>
+              <div className="flex rounded-xl overflow-hidden" style={{ border: "2px solid var(--brand-control-border)" }}>
                 {EVENT_TYPES.map((t) => (
                   <button
                     key={t}
@@ -260,7 +265,7 @@ export default function CreateEventPage() {
                       style={{
                         backgroundColor: selected ? GREEN : "var(--brand-surface)",
                         color: selected ? "var(--brand-on-green)" : "var(--brand-text)",
-                        border: `1px solid ${selected ? GREEN : "var(--brand-border)"}`,
+                        border: `2px solid ${selected ? GREEN : "var(--brand-control-border)"}`,
                       }}
                     >
                       {a}
@@ -331,7 +336,7 @@ export default function CreateEventPage() {
               </FormField>
             )}
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <FormField label="Start Date & Time" error={fieldErrors.startDate}>
                 <input
                   type="datetime-local"
@@ -354,7 +359,10 @@ export default function CreateEventPage() {
 
           {/* ── Tickets & Pricing ── */}
           <Section title="Tickets & Pricing">
-            <div className="grid grid-cols-2 gap-6">
+            {/* Capacity · Currency · Price. Three across from sm up; stacked on a
+                phone, where a third of the column cannot hold "Capacity (max
+                attendees)" above a number input. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <FormField label="Capacity (max attendees)" error={fieldErrors.capacity}>
                 <input
                   type="number"
@@ -366,9 +374,30 @@ export default function CreateEventPage() {
                 />
               </FormField>
 
-              <FormField label="Ticket Price (USD)" error={fieldErrors.price}>
+              {/* Currency the attendee is charged in. Stored on the event, so
+                  every surface renders this event's price with THIS symbol —
+                  see lib/currency.ts. Defaults to INR, the platform's home
+                  currency; the field sits before Price so the price input's
+                  prefix is already showing the right symbol as you type. */}
+              <FormField label="Currency">
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                  className={inputCls(false)}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.symbol} {c.code} — {c.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Ticket Price" error={fieldErrors.price}>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: "var(--brand-hint)" }}>$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: "var(--brand-hint)" }}>
+                    {currencySymbol(currency)}
+                  </span>
                   <input
                     type="number"
                     min="0"
@@ -401,7 +430,7 @@ export default function CreateEventPage() {
                   style={{
                     backgroundColor: communityId ? GREEN : "var(--brand-surface)",
                     color: communityId ? "var(--brand-on-green)" : "var(--brand-text)",
-                    border: `1px solid ${communityId ? GREEN : "var(--brand-border)"}`,
+                    border: `2px solid ${communityId ? GREEN : "var(--brand-control-border)"}`,
                   }}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -464,7 +493,7 @@ export default function CreateEventPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl p-8 space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
+    <div className="rounded-2xl p-5 sm:p-8 space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
       <h2 className="text-[18px] font-bold" style={{ color: "var(--brand-text)" }}>{title}</h2>
       {children}
     </div>
@@ -497,7 +526,7 @@ function FormField({
 function inputCls(hasError: boolean): string {
   return (
     "w-full px-4 py-3 rounded-xl text-sm transition-colors " +
-    "placeholder:text-[var(--brand-hint)] focus:outline-none focus:ring-2 resize-none " +
+    "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 resize-none " +
     (hasError
       ? "border border-red-400 bg-red-50 focus:ring-red-200"
       : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")

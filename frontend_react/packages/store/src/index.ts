@@ -5,3 +5,4 @@ export { useWishlistStore } from "./wishlist-store";
 export type { WishlistItem } from "./wishlist-store";
 export { useLocationStore, CITIES, DEFAULT_CITY, isOnlineCity } from "./location-store";
 export type { City } from "./location-store";
+export { useChatUnreadStore } from "./chat-unread-store";

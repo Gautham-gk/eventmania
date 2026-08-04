@@ -181,7 +181,7 @@ export default function AuthPage() {
 
 const inputCls =
   "w-full px-4 py-3 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] " +
-  "placeholder:text-[var(--brand-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/30 " +
+  "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/30 " +
   "focus:border-[var(--brand-green)] transition-colors";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -199,7 +199,7 @@ function SocialButton({ label, color, initial }: { label: string; color: string;
       type="button"
       disabled
       title="Coming soon"
-      className="w-full flex items-center justify-center gap-3 py-4 rounded-xl border border-[var(--brand-border)]
+      className="w-full flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-[var(--brand-control-border)]
                  bg-[var(--brand-bg)] text-[var(--brand-text)] font-semibold hover:bg-[var(--brand-surface)] transition-colors
                  disabled:opacity-50 disabled:cursor-not-allowed"
     >

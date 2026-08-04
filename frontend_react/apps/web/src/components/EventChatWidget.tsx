@@ -112,15 +112,18 @@ export function EventChatWidget({ event }: Props) {
 
   return (
     // Position: above the sticky booking bar (h-88 = 88px) with 16px gap → bottom-[112px]
-    <div className="fixed bottom-[112px] right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-[112px] right-4 sm:right-6 z-50 flex flex-col items-end gap-3">
 
       {/* ── Chat panel ── */}
       {open && (
         <div
           className="flex flex-col rounded-2xl overflow-hidden shadow-2xl"
           style={{
-            width: 340,
-            height: 500,
+            // A flat 340×500 panel runs past the left edge of a 375px phone and
+            // past the top of a short landscape viewport; both cap to the space
+            // actually available, so the panel never has to be scrolled to.
+            width: "min(340px, calc(100vw - 32px))",
+            height: "min(500px, calc(100vh - 200px))",
             backgroundColor: "var(--brand-surface)",
             border: "1px solid var(--brand-border)",
           }}
@@ -331,7 +334,7 @@ function TypingIndicator() {
             <span
               key={i}
               className="w-1.5 h-1.5 rounded-full animate-bounce"
-              style={{ backgroundColor: "var(--brand-hint)", animationDelay: `${i * 150}ms` }}
+              style={{ backgroundColor: "var(--brand-muted)", animationDelay: `${i * 150}ms` }}
             />
           ))}
         </div>

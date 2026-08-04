@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { eventsApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
@@ -51,9 +52,9 @@ export default function MyOrganisedEventsPage() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-5xl mx-auto">
+      <div className={`py-10 max-w-5xl mx-auto ${GUTTERS}`}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push("/")}
@@ -74,7 +75,7 @@ export default function MyOrganisedEventsPage() {
           </div>
           <button
             onClick={() => router.push("/organizer/create")}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[var(--brand-on-green)] transition-colors"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[var(--brand-on-green)] transition-colors shrink-0 self-start"
             style={{ backgroundColor: GREEN }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -113,7 +114,10 @@ export default function MyOrganisedEventsPage() {
           </div>
         ) : (
           <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--brand-border)" }}>
-            <table className="w-full">
+            {/* Six columns have no honest narrow layout — the table keeps its
+                width and scrolls inside the card. */}
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
               <thead>
                 <tr style={{ backgroundColor: "var(--brand-surface)", borderBottom: "1px solid var(--brand-border)" }}>
                   {["Event", "City", "Date", "Type", "Status", ""].map((h) => (
@@ -173,6 +177,7 @@ export default function MyOrganisedEventsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

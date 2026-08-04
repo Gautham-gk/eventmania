@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { communityApi, eventsApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
@@ -82,7 +83,7 @@ export default function CreateCommunityPage() {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
         <Navbar />
-        <div className="px-12 py-20 max-w-lg mx-auto text-center">
+        <div className={`py-20 max-w-lg mx-auto text-center ${GUTTERS}`}>
           <div className="text-5xl mb-6">🏠</div>
           <h1 className="text-[26px] font-bold mb-3" style={{ color: "var(--brand-text)" }}>
             You already have a community
@@ -107,7 +108,7 @@ export default function CreateCommunityPage() {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
         <Navbar />
-        <div className="px-12 py-20 max-w-lg mx-auto">
+        <div className={`py-20 max-w-lg mx-auto ${GUTTERS}`}>
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
             <div className="text-5xl mb-6">🔒</div>
             <h1 className="text-[24px] font-bold mb-3" style={{ color: "var(--brand-text)" }}>
@@ -191,13 +192,13 @@ export default function CreateCommunityPage() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-2xl mx-auto">
+      <div className={`py-10 max-w-2xl mx-auto ${GUTTERS}`}>
         {/* Header */}
         <div className="flex items-center gap-4 mb-10">
           <button
             onClick={() => router.back()}
             className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)" }}
+            style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)" }}
           >
             <svg className="w-4 h-4" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -321,7 +322,7 @@ function FormField({
 function inputCls(hasError: boolean): string {
   return (
     "w-full px-4 py-3 rounded-xl text-sm transition-colors resize-none " +
-    "placeholder:text-[var(--brand-hint)] focus:outline-none focus:ring-2 " +
+    "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 " +
     (hasError
       ? "border border-red-400 bg-red-50 focus:ring-red-200"
       : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")

@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Event } from "@eventmind/types";
+import { formatPrice } from "@/lib/currency";
 
 /**
  * The event's own picture. Prefers a real uploaded/synced image (`image_url`,
@@ -19,9 +20,19 @@ export function eventImageUrl(event: Pick<Event, "id"> & { image_url?: unknown }
   return `https://picsum.photos/seed/${event.id}/${w}/${h}`;
 }
 
-/** "Free" or "$42" — the short price chip. */
-export function priceLabel(event: Pick<Event, "price">): string {
-  return event.price === 0 ? "Free" : `$${event.price.toFixed(0)}`;
+/**
+ * Same rule for a community. Communities have no `image_url` column at all yet
+ * (see the `Community` type), so in practice this always returns the seeded
+ * placeholder — the SAME seed the community cards use, so a community's hero,
+ * card and share images are all the same picture.
+ */
+export function communityImageUrl(community: { id: string }, w: number, h: number): string {
+  return eventImageUrl(community as Pick<Event, "id">, w, h);
+}
+
+/** "Free" or "₹42" — the short price chip, in the event's own currency. */
+export function priceLabel(event: Pick<Event, "price" | "currency">): string {
+  return formatPrice(event.price, event.currency);
 }
 
 /** Human-readable place for an event. */

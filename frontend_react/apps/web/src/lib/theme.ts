@@ -21,7 +21,15 @@ export const BRAND = {
   text: "var(--brand-text)",
   border: "var(--brand-border)",
   navBorder: "var(--brand-nav-border)",
+  // Outline controls (secondary buttons, chips, tabs, segmented tracks). Much
+  // darker than `border` so a control cannot blend into the page. See globals.css.
+  controlBorder: "var(--brand-control-border)",
+  // Secondary text + icons. Despite the name this is NOT gray — it is the brand
+  // text colour in light and the brand white in dark. See globals.css.
   hint: "var(--brand-hint)",
+  // The one genuinely-gray token: form placeholders and muted FILLS (sold-out
+  // buttons, typing dots). Never use it for ordinary secondary text.
+  muted: "var(--brand-muted)",
   logo: "var(--brand-logo)", // logo/wordmark tint — green in light, linen in dark
 } as const;
 

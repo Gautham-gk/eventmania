@@ -6,16 +6,24 @@ import { useQuery } from "@tanstack/react-query";
 import { communitySource, eventsSource } from "@/lib/data-source";
 import { Navbar } from "@/components/navbar/Navbar";
 import { EventCardItem } from "@/components/EventsCarousel";
-import { toCarouselEvent } from "@/lib/card-adapters";
+import { CategoryBadge, EventBadges } from "@/components/EventBadges";
+import { EventBackButton, EventShareButton, EventWishlistButton } from "@/components/EventActions";
+import { toCarouselEvent, toCommunityItem } from "@/lib/card-adapters";
+import { communityImageUrl } from "@/lib/event-media";
+import { heroTitleSize } from "@/lib/hero-title";
+import { GUTTERS } from "@/lib/layout";
 import { BRAND } from "@/lib/theme";
 
 const GREEN = BRAND.green;
 const BG = BRAND.bg;
 const SURFACE = BRAND.surface;
-const ON_GREEN = BRAND.onGreen;
 const TEXT = BRAND.text;
 const BORDER = BRAND.border;
 const HINT = BRAND.hint;
+
+// Same scrim as the /event/[id] hero — keep the two in step.
+const HERO_SCRIM =
+  "linear-gradient(to top, rgba(8,17,15,0.94) 0%, rgba(8,17,15,0.75) 32%, rgba(8,17,15,0.42) 62%, rgba(8,17,15,0.22) 100%)";
 
 export default function CommunityDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -68,56 +76,81 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
   }
 
   const community = communityRes;
-  const initial = community.name.charAt(0).toUpperCase();
+  // The same adapter the cards use, so the wishlist record saved from this page
+  // is byte-identical to one saved from a community card.
+  const card = toCommunityItem(community);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: BG }}>
       <Navbar />
 
-      {/* Hero banner */}
-      <div className="px-12 py-12" style={{ backgroundColor: GREEN }}>
-        <div className="max-w-4xl mx-auto flex items-center gap-6">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold shrink-0"
-            style={{ backgroundColor: "rgba(255,255,255,0.15)", color: ON_GREEN }}
-          >
-            {initial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap mb-1">
-              <h1 className="text-[30px] font-extrabold text-[var(--brand-on-green)]">{community.name}</h1>
-              {community.category && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.2)", color: ON_GREEN }}>
-                  {community.category}
-                </span>
-              )}
-            </div>
-            {community.description && (
-              <p className="text-sm leading-relaxed mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>
-                {community.description}
-              </p>
-            )}
-            {community.website && (
-              <a
-                href={community.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-xs font-semibold"
-                style={{ color: "rgba(255,255,255,0.75)" }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                </svg>
-                {community.website.replace(/^https?:\/\//, "")}
-              </a>
-            )}
+      {/* ── Hero: full-bleed photo + title overlay ──
+          Mirrors /event/[id] exactly — same scrim, same control set and sizes,
+          same one-line centred title, same category + status tag row. */}
+      <section className="relative flex flex-col justify-end overflow-hidden min-h-[420px] sm:min-h-[520px] lg:min-h-[600px]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={communityImageUrl(community, 1920, 1080)}
+          alt={community.name}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: HERO_SCRIM }} />
+
+        {/* Top row: back / wishlist + share */}
+        <div className={`absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 py-6 ${GUTTERS}`}>
+          <EventBackButton onClick={() => router.back()} labelSide="bottom" size="lg" />
+          <div className="flex items-center gap-2.5 shrink-0">
+            <EventWishlistButton item={card} kind="community" labelSide="bottom" size="lg" />
+            <EventShareButton item={card} kind="community" labelSide="bottom" size="lg" />
           </div>
         </div>
-      </div>
+
+        {/* Title block */}
+        <div className={`relative z-10 pb-12 pt-6 ${GUTTERS}`}>
+          <h1
+            className="hero-title font-extrabold text-white leading-[1.05] text-center whitespace-nowrap overflow-hidden text-ellipsis"
+            style={{ fontSize: heroTitleSize(community.name) }}
+          >
+            {community.name}
+          </h1>
+          <div className="mt-6 flex flex-wrap items-end justify-center gap-1.5">
+            {community.category && <CategoryBadge category={community.category} />}
+            <EventBadges types={card.badgeType ? [card.badgeType] : undefined} align="center" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── About ──
+          Same container as /event/[id]'s body (px-12 inside a 1400 cap), so
+          "About this community" starts on the same line as "About this event"
+          rather than 124px further in — max-w-6xl used to break that. */}
+      {(community.description || community.website) && (
+        <div className={`pt-10 ${GUTTERS}`} style={{ maxWidth: 1400, margin: "0 auto" }}>
+          <h2 className="text-[22px] font-bold" style={{ color: TEXT }}>About this community</h2>
+          {community.description && (
+            <p className="text-[18px] leading-relaxed mt-4" style={{ color: HINT }}>
+              {community.description}
+            </p>
+          )}
+          {community.website && (
+            <a
+              href={community.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-4 text-[16px] font-semibold"
+              style={{ color: GREEN }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+              </svg>
+              {community.website.replace(/^https?:\/\//, "")}
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Events section */}
-      <div className="px-12 py-10 max-w-6xl mx-auto">
+      <div className={`py-10 ${GUTTERS}`} style={{ maxWidth: 1400, margin: "0 auto" }}>
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-[22px] font-bold" style={{ color: TEXT }}>Events</h2>
