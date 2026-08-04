@@ -19,7 +19,7 @@ import {
   communityApi,
   type EventSearchParams,
 } from "@eventmind/api";
-import type { Event, Community } from "@eventmind/types";
+import { isOnlineEvent, type Event, type Community } from "@eventmind/types";
 import { dummyEvents, dummyOnlineEvents } from "./fixtures/events";
 import { dummyCommunities, dummyOnlineCommunities } from "./fixtures/communities";
 
@@ -40,11 +40,27 @@ const ok = <T>(data: T): Promise<{ data: T }> => Promise.resolve({ data });
 const has = (hay: string, q?: string) =>
   !q || hay.toLowerCase().includes(q.toLowerCase());
 
+// A Hybrid event is attendable BOTH ways, so it matches an Online filter AND an
+// In-Person one — it belongs in the city row and the online row at once. That is
+// the case the old `category === "online"` encoding could not represent.
+function matchesFormat(event: Event, wanted: string): boolean {
+  if ((event.event_type ?? "").toLowerCase() === "hybrid") return true;
+  return wanted.toLowerCase() === "online" ? isOnlineEvent(event) : !isOnlineEvent(event);
+}
+
 // In dummy mode we deliberately IGNORE geo/city/price/date filters so the UI is
-// always populated for beautifying. We honour only: online-vs-offline split (via
-// category === "online"), a loose text query, organizer_id, and limit.
+// always populated for beautifying. We honour only: the online-vs-in-person split
+// (via event_type), category, a loose text query, organizer_id, and limit.
 function dummyEventSearch(params?: EventSearchParams): Event[] {
-  let list = params?.category === "online" ? dummyOnlineEvents : dummyEvents;
+  // event_type is the format filter; it is INDEPENDENT of category, so
+  // { event_type: "Online", category: "Music" } correctly yields online music
+  // events.
+  let list = allEvents();
+  if (params?.event_type) list = list.filter((e) => matchesFormat(e, params.event_type!));
+  if (params?.category) {
+    const wanted = params.category.toLowerCase();
+    list = list.filter((e) => e.category.toLowerCase() === wanted);
+  }
   if (params?.q) list = list.filter((e) => has(e.title, params.q));
   if (params?.organizer_id) list = list.filter((e) => e.organizer_id === params.organizer_id);
   if (typeof params?.limit === "number") list = list.slice(0, params.limit);

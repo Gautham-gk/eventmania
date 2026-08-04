@@ -1,3 +1,31 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  CURRENCY — the data contract. Formatting lives in apps/web/src/lib/currency.
+//
+//  Every price in the app is a bare number PLUS the event's own `currency`.
+//  Never render a price without reading its currency: the platform's home
+//  currency is INR, but Ticketmaster-synced events carry real USD/GBP/EUR
+//  amounts, so assuming one symbol mislabels the other's data.
+//
+//  Codes must match the backend's VARCHAR(3) column exactly (ISO 4217, upper
+//  case). Import these constants; never hand-write the literal.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const CURRENCIES = [
+  { code: "INR", symbol: "₹", label: "Indian Rupee", locale: "en-IN" },
+  { code: "USD", symbol: "$", label: "US Dollar", locale: "en-US" },
+  { code: "EUR", symbol: "€", label: "Euro", locale: "de-DE" },
+  { code: "GBP", symbol: "£", label: "British Pound", locale: "en-GB" },
+  { code: "AED", symbol: "د.إ", label: "UAE Dirham", locale: "en-AE" },
+  { code: "SGD", symbol: "S$", label: "Singapore Dollar", locale: "en-SG" },
+  { code: "AUD", symbol: "A$", label: "Australian Dollar", locale: "en-AU" },
+  { code: "CAD", symbol: "C$", label: "Canadian Dollar", locale: "en-CA" },
+] as const;
+
+export type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+/** The platform's home currency — the fallback for any event missing one. */
+export const DEFAULT_CURRENCY: CurrencyCode = "INR";
+
 export interface User {
   id: string;
   email: string;
@@ -25,11 +53,51 @@ export interface Event {
   capacity: number;
   tickets_sold: number;
   price: number;
+  /** ISO 4217 code the organiser priced in. Absent on rows written before the
+   *  column existed — treat a missing value as DEFAULT_CURRENCY, never as USD. */
+  currency?: CurrencyCode;
   status: string;
   content_generated?: Record<string, unknown>;
   moderation_score?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Event FORMAT (`event_type`) — orthogonal to `category`.
+//
+//  An event has ONE category (Music, Sports, …) AND ONE format (online or not).
+//  They are separate fields on purpose: an online event is still a Music event.
+//  Do NOT go back to encoding the format as `category === "online"` — that made
+//  the two mutually exclusive, so an online event could never carry a real
+//  category.
+//
+//  The strings must match the backend exactly — `event_type` is a plain
+//  String(20) column (see backend/services/event/app/models/event.py) filtered
+//  with `==`, so a casing mismatch silently returns zero rows rather than
+//  erroring. Import these constants; never hand-write the literal.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const EVENT_FORMATS = {
+  inPerson: "In-Person",
+  online: "Online",
+  hybrid: "Hybrid",
+} as const;
+
+export type EventFormat = (typeof EVENT_FORMATS)[keyof typeof EVENT_FORMATS];
+
+/**
+ * Is this event attendable online? True for both Online and Hybrid.
+ *
+ * Case-insensitive, and falls back to the legacy `category === "online"`
+ * encoding, because rows created before the split still carry it — a dev DB
+ * that has not been backfilled would otherwise lose every online event from the
+ * "Online Events" row. Drop the fallback once the backfill has run everywhere.
+ */
+export function isOnlineEvent(event: { event_type?: string; category?: string }): boolean {
+  const format = (event.event_type ?? "").toLowerCase();
+  if (format === "online" || format === "hybrid") return true;
+  return (event.category ?? "").toLowerCase() === "online";
 }
 
 export interface Ticket {

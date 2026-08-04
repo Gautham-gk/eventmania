@@ -60,7 +60,9 @@ export function ShareModal({ fallback, onClose }: Props) {
         style={{ backgroundColor: "var(--brand-surface)", border: "1px solid var(--brand-border)" }}
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
-          <h2 className="text-[18px] font-bold text-[var(--brand-text)]">Share this event</h2>
+          <h2 className="text-[18px] font-bold text-[var(--brand-text)]">
+            Share this {fallback.kind}
+          </h2>
           <button
             onClick={onClose}
             className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--brand-green)_8%,transparent)] transition-colors"
@@ -96,7 +98,7 @@ export function ShareModal({ fallback, onClose }: Props) {
           <button
             onClick={copyLink}
             className="w-full py-3.5 rounded-2xl text-[16px] font-bold transition-colors"
-            style={{ border: "1px solid var(--brand-border)", color: "var(--brand-text)" }}
+            style={{ border: "2px solid var(--brand-control-border)", color: "var(--brand-text)" }}
           >
             {copied ? "Link copied ✓" : "Copy link"}
           </button>

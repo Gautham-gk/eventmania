@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import { QueryProvider } from "@/providers/query-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { ChatPresence } from "@/components/ChatPresence";
 import { NO_FLASH_SCRIPT } from "@/lib/theme";
 import "@/lib/api-config";
 import "./globals.css";
@@ -70,7 +71,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col font-sans">
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            {children}
+            {/* Invisible: lights the navbar chat button on new messages. */}
+            <ChatPresence />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

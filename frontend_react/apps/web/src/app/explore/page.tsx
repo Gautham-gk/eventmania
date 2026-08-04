@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useState, useCallback, useMemo } from "react";
+import { Suspense, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { eventsSource, communitiesSource } from "@/lib/data-source";
 import { useLocationStore, DEFAULT_CITY, CITIES, isOnlineCity } from "@eventmind/store";
 import type { City } from "@eventmind/store";
-import type { Event, Community } from "@eventmind/types";
+import { EVENT_FORMATS, type Event, type Community } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
 import { EventCardItem } from "@/components/EventsCarousel";
 import { CommunityCardItem } from "@/components/CommunityCarousel";
@@ -21,7 +21,80 @@ const CATEGORIES = [
   "Education", "Arts & Culture", "Sports", "Food & Drink",
 ];
 
-const EVENT_TYPES = ["All", "In-Person", "Online", "Hybrid"];
+// No "Hybrid" chip on purpose. A hybrid event is attendable both ways, and the
+// event service already folds it into BOTH the In-Person and the Online filter
+// (see the event_type branch in event_endpoints.py), so a third chip would only
+// ever narrow the list to hybrid-only — which is not a thing anyone browses for.
+const EVENT_TYPES = ["All", "In-Person", "Online"];
+
+// Search radius, in km, around the selected city. 25 keeps results genuinely
+// local — the old 200 reached well past the chosen city into other towns, which
+// is not what picking a city means. 200 is still one chip away.
+const RADIUS_OPTIONS = [5, 10, 25, 50, 100, 200];
+const DEFAULT_RADIUS = 25;
+
+// ─── Date presets ────────────────────────────────────────────────────────────────
+// The chips are pure sugar over dateFrom/dateTo — every preset resolves to a
+// concrete [from, to] pair, so the query layer never learns about presets at all.
+// All of them start at today: "this week" means the rest of this week, not a week
+// that has already partly gone by.
+type DatePreset = "today" | "week" | "month";
+
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" },
+];
+
+// The page opens pre-filtered to this week rather than to everything — a wall of
+// events six months out is not what someone browsing has come for. "All events"
+// is a chip away, and the Active row names the constraint so it never looks like
+// the catalogue is simply empty.
+const DEFAULT_PRESET: DatePreset = "week";
+
+// Local-date ISO (YYYY-MM-DD). toISOString() would shift the day for anyone
+// east/west of UTC, which is exactly the bug that makes "Today" return nothing.
+const isoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// "2026-07-21" → "21/07/26", for DISPLAY only — state and the API stay on ISO.
+// Split rather than `new Date(iso)`, which parses a bare date as UTC midnight and
+// would show the previous day for anyone west of Greenwich.
+const shortDate = (iso: string) => {
+  const [y, m, d] = iso.split("-");
+  return y && m && d ? `${d}/${m}/${y.slice(2)}` : iso;
+};
+
+const addDays = (d: Date, n: number) => {
+  const out = new Date(d);
+  out.setDate(out.getDate() + n);
+  return out;
+};
+
+function presetRange(preset: DatePreset): [string, string] {
+  const today = new Date();
+  const dow = today.getDay(); // 0 = Sunday
+  switch (preset) {
+    case "today":
+      return [isoDate(today), isoDate(today)];
+    case "week":
+      return [isoDate(today), isoDate(addDays(today, (7 - dow) % 7))]; // → Sunday
+    case "month": {
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return [isoDate(today), isoDate(end)];
+    }
+  }
+}
+
+// A preset chip lights up only while the dates still match what it would set —
+// nudge either input by a day and the selection drops back to "custom".
+function matchingPreset(from: string, to: string): DatePreset | null {
+  if (!from && !to) return null;
+  return DATE_PRESETS.find((p) => {
+    const [f, t] = presetRange(p.value);
+    return f === from && t === to;
+  })?.value ?? null;
+}
 
 // Which content to show. "both" is the default — neither toggle forces a single mode.
 type View = "events" | "communities" | "both";
@@ -62,6 +135,27 @@ const itemDate = (i: Item) => {
 const itemPrice = (i: Item) => Number(i.kind === "event" ? i.ev.price : i.co.price) || 0;
 const itemPopularity = (i: Item) =>
   i.kind === "event" ? i.ev.tickets_sold ?? 0 : i.co.member_count ?? 0;
+
+// Same test as toCarouselEvent's "sold-out" badge — keep the two in step, or the
+// grid will sink a card to the bottom without the tag that explains why.
+const itemSoldOut = (i: Item) =>
+  i.kind === "event" && i.ev.capacity > 0 && i.ev.tickets_sold >= i.ev.capacity;
+
+// Same test as toCarouselEvent's "selling-fast" badge — the Availability filter
+// below exists to select exactly the cards carrying that tag, so if the 70%
+// threshold moves in card-adapters.ts it MUST move here too, or the filter will
+// return events with no Selling Fast tag on them (and hide ones that have it).
+const itemSellingFast = (i: Item) =>
+  i.kind === "event" &&
+  !itemSoldOut(i) &&
+  i.ev.capacity > 0 &&
+  i.ev.tickets_sold / i.ev.capacity > 0.7;
+
+/** Sold-out events sink below everything still bookable, whatever the chosen
+ *  sort. filter() is stable, so within each half the sort order is untouched. */
+function soldOutLast(items: Item[]): Item[] {
+  return [...items.filter((i) => !itemSoldOut(i)), ...items.filter(itemSoldOut)];
+}
 
 function sortItems(items: Item[], sort: Sort): Item[] {
   const arr = [...items];
@@ -112,9 +206,17 @@ function ExploreContent() {
     CITIES.find((c) => c.name === searchParams.get("city")) ?? selectedCity
   );
   const [freeOnly, setFreeOnly] = useState(searchParams.get("free") === "true");
-  const [dateFrom, setDateFrom] = useState(searchParams.get("date_from") ?? "");
-  const [dateTo, setDateTo] = useState(searchParams.get("date_to") ?? "");
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sellingFast, setSellingFast] = useState(searchParams.get("selling_fast") === "true");
+  const [radius, setRadius] = useState(Number(searchParams.get("radius")) || DEFAULT_RADIUS);
+  // Lazy initialiser so presetRange() runs once, not on every render. A URL that
+  // carries either date wins outright — including a deliberately empty one, so a
+  // shared "All events" link doesn't silently snap back to this week.
+  const [dateFrom, setDateFrom] = useState(
+    () => searchParams.get("date_from") ?? (searchParams.has("date_to") ? "" : presetRange(DEFAULT_PRESET)[0])
+  );
+  const [dateTo, setDateTo] = useState(
+    () => searchParams.get("date_to") ?? (searchParams.has("date_from") ? "" : presetRange(DEFAULT_PRESET)[1])
+  );
 
   const online = isOnlineCity(city);
   const showEvents = view !== "communities";
@@ -143,13 +245,17 @@ function ExploreContent() {
     updateUrl({ sort: next === "relevance" ? null : next });
   }
 
-  // When "Online" is the selected city, both events and communities are queried by
-  // category="online" rather than a geographic radius (online items live at lat/lng 0,0).
+  // When "Online" is the selected city, events are queried by FORMAT
+  // (event_type) rather than a geographic radius — online events live at lat/lng
+  // 0,0. Because format is independent of category, the category filter still
+  // applies here: picking Online + Music now gives online music events, where the
+  // old category="online" query silently threw the category selection away.
   const buildEventParams = useCallback(() => {
     if (online) {
       return {
         q: q || undefined,
-        category: "online",
+        category: category !== "All" ? category : undefined,
+        event_type: EVENT_FORMATS.online,
         price_max: freeOnly ? 0 : undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
@@ -161,12 +267,12 @@ function ExploreContent() {
       event_type: eventType !== "All" ? eventType : undefined,
       lat: city.lat,
       lng: city.lng,
-      radius: 200,
+      radius,
       price_max: freeOnly ? 0 : undefined,
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
     };
-  }, [online, q, category, eventType, city, freeOnly, dateFrom, dateTo]);
+  }, [online, q, category, eventType, city, freeOnly, dateFrom, dateTo, radius]);
 
   const buildCommunityParams = useCallback(() => {
     if (online) return { q: q || undefined, category: "online" };
@@ -178,7 +284,7 @@ function ExploreContent() {
   }, [online, q, category, city]);
 
   const { data: events, isLoading: eventsLoading } = useQuery({
-    queryKey: ["explore-events", online, q, category, eventType, city.name, freeOnly, dateFrom, dateTo],
+    queryKey: ["explore-events", online, q, category, eventType, city.name, freeOnly, dateFrom, dateTo, radius],
     queryFn: () => eventsSource.search(buildEventParams()).then((r) => r.data),
     enabled: showEvents,
   });
@@ -192,15 +298,26 @@ function ExploreContent() {
   // Build the (sorted) unified list. In "both" view events + communities are mixed
   // into a single bunch — no separate sections.
   const items = useMemo<Item[]>(() => {
-    const eventItems: Item[] = (events ?? []).map((ev) => ({ kind: "event", id: String(ev.id), ev }));
+    // Availability is the one filter the API cannot do: "selling fast" is derived
+    // from capacity vs tickets_sold, and /event/search takes no such parameter —
+    // so it narrows the fetched rows here rather than the query. Communities are
+    // deliberately untouched, exactly like the price/date/format filters: they
+    // have no capacity, and dropping them all from "View Both" the moment this
+    // chip is pressed would look like the filter had broken the other half.
+    const sourceEvents = sellingFast
+      ? (events ?? []).filter((ev) => itemSellingFast({ kind: "event", id: String(ev.id), ev }))
+      : (events ?? []);
+    const eventItems: Item[] = sourceEvents.map((ev) => ({ kind: "event", id: String(ev.id), ev }));
     const communityItems: Item[] = (communities ?? []).map((co) => ({ kind: "community", id: String(co.id), co }));
 
-    if (view === "events") return sortItems(eventItems, sort);
-    if (view === "communities") return sortItems(communityItems, sort);
+    // soldOutLast wraps EVERY branch — it outranks the chosen sort, so a sold-out
+    // event stays at the bottom even under "Date: soonest".
+    if (view === "events") return soldOutLast(sortItems(eventItems, sort));
+    if (view === "communities") return soldOutLast(sortItems(communityItems, sort));
     // both
-    if (sort === "relevance") return interleave(eventItems, communityItems);
-    return sortItems([...eventItems, ...communityItems], sort);
-  }, [events, communities, view, sort]);
+    if (sort === "relevance") return soldOutLast(interleave(eventItems, communityItems));
+    return soldOutLast(sortItems([...eventItems, ...communityItems], sort));
+  }, [events, communities, view, sort, sellingFast]);
 
   const isLoading =
     (showEvents && eventsLoading) || (showCommunities && communitiesLoading);
@@ -208,21 +325,64 @@ function ExploreContent() {
   // Format/date/price filters only constrain events, so hide them in communities-only view.
   const showEventFilters = view !== "communities";
 
+  // A date range counts as ONE filter, not two — "1 Jan → 5 Jan" is a single
+  // choice to the user, and counting both ends made the badge read 4 for what
+  // the Active row shows as 3 chips.
+  const hasDateFilter = !!dateFrom || !!dateTo;
+
+  // Radius is meaningless for the Online pseudo-city — those events sit at
+  // lat/lng 0,0 and are queried by FORMAT, not by a geographic search — so the
+  // control hides rather than sitting there doing nothing.
+  const showRadius = showEventFilters && !online;
+
+  // 3-up, not the 4-up used elsewhere in the app: the always-present sidebar
+  // takes 300px + a 24px gap out of the row, which is almost exactly one card's
+  // worth, so three cells here are the same width as four on the home grid.
+  const resultGridCls = "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5";
+
   const activeFiltersCount = [
     category !== "All",
     showEventFilters && eventType !== "All",
+    showEventFilters && sellingFast,
     showEventFilters && freeOnly,
-    showEventFilters && !!dateFrom,
-    showEventFilters && !!dateTo,
+    showEventFilters && hasDateFilter,
+    showRadius && radius !== DEFAULT_RADIUS,
   ].filter(Boolean).length;
+
+  const datePreset = matchingPreset(dateFrom, dateTo);
+
+  function selectDatePreset(preset: DatePreset) {
+    if (datePreset === preset) {
+      setDateFrom("");
+      setDateTo("");
+      return;
+    }
+    const [from, to] = presetRange(preset);
+    setDateFrom(from);
+    setDateTo(to);
+  }
+
+  function clearDates() {
+    setDateFrom("");
+    setDateTo("");
+  }
 
   function clearFilters() {
     setCategory("All");
     setEventType("All");
+    setSellingFast(false);
     setFreeOnly(false);
-    setDateFrom("");
-    setDateTo("");
+    setRadius(DEFAULT_RADIUS);
+    clearDates();
   }
+
+  const dateChipLabel = datePreset
+    ? DATE_PRESETS.find((p) => p.value === datePreset)!.label
+    : dateFrom && dateTo
+      ? `${shortDate(dateFrom)} → ${shortDate(dateTo)}`
+      : dateFrom
+        ? `From ${shortDate(dateFrom)}`
+        : `Until ${shortDate(dateTo)}`;
 
   const noun = view === "events" ? "event" : view === "communities" ? "community" : "result";
   const countLabel = (n: number) =>
@@ -259,7 +419,7 @@ function ExploreContent() {
               placeholder="Search events or communities…"
               className="w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2"
               style={{
-                border: "1px solid var(--brand-border)",
+                border: "2px solid var(--brand-control-border)",
                 backgroundColor: "var(--brand-bg)",
                 color: "var(--brand-text)",
               }}
@@ -271,7 +431,7 @@ function ExploreContent() {
             value={city.name}
             onChange={(e) => setCity(CITIES.find((c) => c.name === e.target.value) ?? selectedCity)}
             className="px-4 py-3 rounded-xl text-sm focus:outline-none"
-            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}
+            style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}
           >
             {CITIES.map((c) => (
               <option key={c.name} value={c.name}>
@@ -282,7 +442,7 @@ function ExploreContent() {
 
           {/* Sort by */}
           <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm"
-            style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}>
+            style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)", color: "var(--brand-text)" }}>
             <span className="font-medium whitespace-nowrap" style={{ color: "var(--brand-hint)" }}>Sort by</span>
             <select
               value={sort}
@@ -296,26 +456,16 @@ function ExploreContent() {
             </select>
           </label>
 
-          {/* Filter toggle */}
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-            style={{
-              border: `1px solid ${activeFiltersCount > 0 ? GREEN : "var(--brand-border)"}`,
-              backgroundColor: activeFiltersCount > 0 ? GREEN : "var(--brand-surface)",
-              color: activeFiltersCount > 0 ? "var(--brand-on-green)" : "var(--brand-text)",
-            }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-            </svg>
-            Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}
-          </button>
         </div>
 
         {/* View switch + contextual Create button. The switch sits just below search. */}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="inline-flex rounded-xl p-1 gap-1" style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-surface)" }}>
+          {/* Track radius = item radius + the track's own p-1, so the two curves
+              nest instead of fighting: rounded-2xl (16) = rounded-xl (12) + 4.
+              Below sm the track goes full-width and its three items split it
+              evenly (min-w-0 so "View Communities" wraps rather than forcing the
+              track wider than the phone). */}
+          <div className="flex w-full sm:w-auto sm:inline-flex rounded-2xl p-1 gap-1" style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-surface)" }}>
             {VIEW_SEGMENTS.map((seg) => {
               const active = view === seg.value;
               return (
@@ -323,7 +473,7 @@ function ExploreContent() {
                   key={seg.value}
                   onClick={() => selectView(seg.value)}
                   aria-pressed={active}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  className="flex-1 min-w-0 sm:flex-none px-2 sm:px-4 py-1.5 rounded-xl text-[18px] font-bold transition-all duration-150 active:scale-[0.98]"
                   style={{
                     backgroundColor: active ? GREEN : "transparent",
                     color: active ? "var(--brand-on-green)" : "var(--brand-text)",
@@ -344,93 +494,212 @@ function ExploreContent() {
           )}
         </div>
 
-        {/* Filter panel */}
-        {filtersOpen && (
-          <div className="mt-4 p-6 rounded-2xl space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {/* Category */}
-              <FilterGroup label="Category">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className={selectCls}
-                >
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </FilterGroup>
+      </div>
+
+      {/* ─── Body: filter sidebar + results ────────────────────────────────────
+          The sidebar deliberately does NOT scroll internally and is NOT pinned:
+          it sizes to its content and the whole PAGE scrolls to reach the bottom
+          of it. Those two go together — a sticky column taller than the viewport
+          pins its top and makes its lower half permanently unreachable, since the
+          page scrolling past it no longer moves it. Gautham's call.
+          `items-start` keeps it from stretching to the height of the results
+          column; below lg it stacks above the results instead. */}
+      <div className="px-4 sm:px-6 lg:px-12 pb-20 flex flex-col lg:flex-row items-start gap-6">
+          <aside
+            className="w-full lg:w-[300px] lg:shrink-0 rounded-2xl overflow-hidden"
+            style={{ backgroundColor: "var(--brand-surface)", border: "2px solid var(--brand-control-border)" }}
+          >
+            <div>
+              {/* Header: count + clear all */}
+              <div
+                className="flex items-center justify-between gap-3 px-5 py-3.5 border-b"
+                style={{ borderColor: "var(--brand-border)" }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M6.75 12h10.5m-7.5 5.25h4.5" />
+                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--brand-text)" }}>
+                    Filters
+                  </span>
+                  {activeFiltersCount > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-bold"
+                      style={{ backgroundColor: GREEN, color: "var(--brand-on-green)" }}
+                    >
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </div>
+
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = GREEN)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--brand-hint)")}
+                    className="flex items-center gap-1.5 text-sm font-bold transition-colors"
+                    style={{ color: "var(--brand-hint)" }}
+                  >
+                    <CloseGlyph />
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              {/* Sections */}
+              <FilterSection label="Category" first>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((c) => (
+                    <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
+                      {c}
+                    </Chip>
+                  ))}
+                </div>
+              </FilterSection>
 
               {showEventFilters && (
                 <>
-                  {/* Event type */}
-                  <FilterGroup label="Format">
-                    <div className="flex flex-col gap-1">
-                      {EVENT_TYPES.map((t) => (
-                        <label key={t} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="radio"
-                            name="eventType"
-                            checked={eventType === t}
-                            onChange={() => setEventType(t)}
-                            className="accent-[var(--brand-green)]"
-                          />
-                          <span style={{ color: "var(--brand-text)" }}>{t}</span>
-                        </label>
+                  <FilterSection label="Format">
+                    <div
+                      className="inline-flex flex-wrap rounded-xl p-1 gap-1"
+                      style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)" }}
+                    >
+                      {EVENT_TYPES.map((t) => {
+                        const active = eventType === t;
+                        return (
+                          <button
+                            key={t}
+                            onClick={() => setEventType(t)}
+                            aria-pressed={active}
+                            className={`nf-chip ${active ? "nf-chip-selected" : ""} px-3.5 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap`}
+                            style={{
+                              backgroundColor: active ? GREEN : "transparent",
+                              color: active ? "var(--brand-on-green)" : "var(--brand-text)",
+                            }}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </FilterSection>
+
+                  {/* Availability — the card's status tags, as filters. Only
+                      "Selling Fast" lives here: Free is the Price toggle below
+                      and This Week is a Date Range preset, so nothing has two
+                      homes, and Sold Out is not something anyone browses FOR
+                      (those cards already sink to the bottom via soldOutLast).
+                      It is NOT a Category chip — an event is Music *and* selling
+                      fast, and Category is single-select, so filing it there
+                      would make the two mutually exclusive. */}
+                  <FilterSection label="Availability">
+                    <div className="flex flex-wrap gap-2">
+                      <Chip active={!sellingFast} onClick={() => setSellingFast(false)}>
+                        All
+                      </Chip>
+                      <Chip active={sellingFast} onClick={() => setSellingFast(true)}>
+                        Selling Fast
+                      </Chip>
+                    </div>
+                  </FilterSection>
+
+                  {showRadius && (
+                    <FilterSection
+                      label={
+                        <>
+                          Within <span style={{ color: GREEN }}>{radius} km</span> of {city.name}
+                        </>
+                      }
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {RADIUS_OPTIONS.map((r) => (
+                          <Chip key={r} active={radius === r} onClick={() => setRadius(r)}>
+                            {r} km
+                          </Chip>
+                        ))}
+                      </div>
+                    </FilterSection>
+                  )}
+
+                  <FilterSection label="Date Range">
+                    <div className="flex items-center gap-2">
+                      <DateField value={dateFrom} onChange={setDateFrom} placeholder="Start" />
+                      <span className="text-sm shrink-0" style={{ color: "var(--brand-hint)" }}>→</span>
+                      <DateField value={dateTo} min={dateFrom} onChange={setDateTo} placeholder="End" />
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {/* "All events" is the absence of a date filter, not a range
+                          of its own, so it clears rather than setting anything. */}
+                      <Chip active={!hasDateFilter} onClick={clearDates}>All events</Chip>
+                      {DATE_PRESETS.map((p) => (
+                        <Chip key={p.value} active={datePreset === p.value} onClick={() => selectDatePreset(p.value)}>
+                          {p.label}
+                        </Chip>
                       ))}
                     </div>
-                  </FilterGroup>
+                  </FilterSection>
 
-                  {/* Date range */}
-                  <FilterGroup label="Date Range">
-                    <div className="space-y-2">
-                      <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                        className={selectCls}
-                        placeholder="From"
-                      />
-                      <input
-                        type="date"
-                        value={dateTo}
-                        min={dateFrom}
-                        onChange={(e) => setDateTo(e.target.value)}
-                        className={selectCls}
-                        placeholder="To"
-                      />
-                    </div>
-                  </FilterGroup>
-
-                  {/* Price */}
-                  <FilterGroup label="Price">
-                    <label className="flex items-center gap-2 text-sm cursor-pointer mt-1">
-                      <input
-                        type="checkbox"
-                        checked={freeOnly}
-                        onChange={(e) => setFreeOnly(e.target.checked)}
-                        className="accent-[var(--brand-green)] w-4 h-4"
-                      />
-                      <span style={{ color: "var(--brand-text)" }}>Free events only</span>
-                    </label>
-                  </FilterGroup>
+                  <FilterSection label="Price">
+                    <button
+                      role="switch"
+                      aria-checked={freeOnly}
+                      onClick={() => setFreeOnly((v) => !v)}
+                      className="w-full flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl transition-colors"
+                      style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)" }}
+                    >
+                      <span className="text-sm font-bold" style={{ color: "var(--brand-text)" }}>
+                        Free events only
+                      </span>
+                      <span
+                        className="relative w-11 h-6 rounded-full shrink-0 transition-colors"
+                        style={{ backgroundColor: freeOnly ? GREEN : "var(--brand-muted)" }}
+                      >
+                        <span
+                          className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform"
+                          style={{
+                            backgroundColor: "var(--brand-surface)",
+                            transform: freeOnly ? "translateX(20px)" : "none",
+                          }}
+                        />
+                      </span>
+                    </button>
+                  </FilterSection>
                 </>
               )}
+
+              {/* Active chips — every applied filter, individually removable */}
+              {activeFiltersCount > 0 && (
+                <div className="px-5 py-4 border-t" style={{ borderColor: "var(--brand-border)" }}>
+                  <span className="block text-xs font-bold uppercase tracking-[0.12em] mb-2.5" style={{ color: "var(--brand-hint)" }}>
+                    Active
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {category !== "All" && (
+                      <ActiveChip label={`Category · ${category}`} onRemove={() => setCategory("All")} />
+                    )}
+                    {showEventFilters && eventType !== "All" && (
+                      <ActiveChip label={`Format · ${eventType}`} onRemove={() => setEventType("All")} />
+                    )}
+                    {showEventFilters && sellingFast && (
+                      <ActiveChip label="Selling Fast" onRemove={() => setSellingFast(false)} />
+                    )}
+                    {showRadius && radius !== DEFAULT_RADIUS && (
+                      <ActiveChip label={`Within ${radius} km`} onRemove={() => setRadius(DEFAULT_RADIUS)} />
+                    )}
+                    {showEventFilters && hasDateFilter && (
+                      <ActiveChip label={dateChipLabel} onRemove={clearDates} />
+                    )}
+                    {showEventFilters && freeOnly && (
+                      <ActiveChip label="Free events only" onRemove={() => setFreeOnly(false)} />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+          </aside>
 
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="text-xs font-semibold"
-                style={{ color: "#EF4444" }}
-              >
-                Clear all filters
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Results — a single unified grid (events + communities mixed in "both" view) */}
-      <div className="px-4 sm:px-6 lg:px-12 pb-20">
+        {/* Results — a single unified grid (events + communities mixed in "both" view) */}
+        <div className="flex-1 min-w-0 w-full">
         <div className="flex items-center gap-2 mb-6">
           <span className="text-sm font-semibold" style={{ color: "var(--brand-hint)" }}>
             {isLoading ? "Searching…" : `${countLabel(items.length)} found`}
@@ -457,7 +726,7 @@ function ExploreContent() {
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearFilters}
-                className="mt-2 text-sm font-semibold px-4 py-2 rounded-xl"
+                className="mt-2 text-sm font-bold px-4 py-2 rounded-xl transition-all duration-150 active:scale-[0.98]"
                 style={{ backgroundColor: GREEN, color: "var(--brand-on-green)" }}
               >
                 Clear filters
@@ -465,7 +734,7 @@ function ExploreContent() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          <div className={resultGridCls}>
             {items.map((item) =>
               item.kind === "event" ? (
                 <EventCardItem
@@ -482,19 +751,23 @@ function ExploreContent() {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
 }
 
+/** Proportioned to match the event card's "View details" CTA: 20px bold on 6px
+ *  of vertical padding. The old 15px-on-10px inverted that ratio — small text
+ *  floating in a roomy box, which is what made it read as tentative. */
 function CreateButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-[var(--brand-on-green)]"
+      className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[20px] font-bold text-[var(--brand-on-green)] transition-all duration-150 active:scale-[0.98]"
       style={{ backgroundColor: GREEN }}
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
       </svg>
       {label}
@@ -502,15 +775,125 @@ function CreateButton({ label, onClick }: { label: string; onClick: () => void }
   );
 }
 
-function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+/** One stacked block of the filter sidebar, separated from the one above by a
+ *  rule. `first` drops that rule so the top section doesn't double up with the
+ *  header's own bottom border. */
+function FilterSection({ label, first, children }: { label: React.ReactNode; first?: boolean; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--brand-hint)" }}>{label}</label>
+    <div
+      className={`px-5 py-4 ${first ? "" : "border-t"}`}
+      style={{ borderColor: "var(--brand-border)" }}
+    >
+      <span className="block text-xs font-bold uppercase tracking-[0.12em] mb-3" style={{ color: "var(--brand-hint)" }}>
+        {label}
+      </span>
       {children}
     </div>
   );
 }
 
-const selectCls =
-  "w-full px-3 py-2 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]" +
-  " border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)]";
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`nf-chip ${active ? "nf-chip-selected" : ""} px-3.5 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap`}
+      style={{
+        backgroundColor: active ? GREEN : "transparent",
+        color: active ? "var(--brand-on-green)" : "var(--brand-text)",
+        border: `2px solid ${active ? GREEN : "var(--brand-control-border)"}`,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** An applied filter. Deliberately the SAME green-filled look as a selected Chip
+ *  above — it represents the same selection, just in a second location, so a
+ *  tinted "removable" variant would have read as a different kind of control.
+ *  The × is the only thing that distinguishes it. */
+function ActiveChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 pl-3.5 pr-2 py-1.5 rounded-xl text-sm font-bold"
+      style={{ backgroundColor: GREEN, color: "var(--brand-on-green)", border: `2px solid ${GREEN}` }}
+    >
+      {label}
+      <button onClick={onRemove} aria-label={`Remove ${label} filter`} className="transition-opacity hover:opacity-60">
+        <CloseGlyph />
+      </button>
+    </span>
+  );
+}
+
+/** A date input that shows a word ("Start") instead of the browser's mm/dd/yyyy
+ *  until it's focused or filled — `type="text"` has a placeholder, `type="date"`
+ *  ignores one, so the type flips on focus. The native picker indicator is
+ *  stretched over the whole field and hidden, so clicking anywhere opens it and
+ *  our own left-hand calendar glyph is the only one visible. */
+function DateField({
+  value,
+  min,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  min?: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+
+  // Open the calendar on the FIRST click. Without this it took two: the field
+  // starts as type="text" (so it can show a word instead of mm/dd/yyyy), and a
+  // text input has no picker indicator to hit — the first click only flipped it
+  // to type="date", and the second finally landed on the indicator. showPicker()
+  // can't run until that flip has painted, hence the rAF. It throws on a text
+  // input and where unsupported, so it's guarded and degrades to typing.
+  function openPicker() {
+    setFocused(true);
+    requestAnimationFrame(() => {
+      try {
+        ref.current?.showPicker();
+      } catch {
+        /* no picker here — the field still accepts a typed date */
+      }
+    });
+  }
+
+  return (
+    <span className="relative flex-1 min-w-0">
+      <input
+        ref={ref}
+        // A native date input renders its value in the BROWSER's locale format —
+        // no attribute or CSS changes that. So the field only becomes type="date"
+        // while it's focused (for the picker); at rest it's a read-only text box
+        // showing our own dd/mm/yy, or the placeholder when empty.
+        type={focused ? "date" : "text"}
+        value={focused ? value : value ? shortDate(value) : ""}
+        readOnly={!focused}
+        min={min}
+        placeholder={placeholder}
+        onFocus={openPicker}
+        onClick={openPicker}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]
+          border-[var(--brand-control-border)] bg-[var(--brand-bg)] text-[var(--brand-text)]
+          [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0
+          [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full
+          [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+      />
+    </span>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  );
+}

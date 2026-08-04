@@ -1,33 +1,64 @@
-// Client-side share flow for an event.
+// Client-side share flow for an event OR a community.
 //
 // On devices that support sharing files (mobile), we fetch the generated story
 // PNG and hand it to the native share sheet so it can be posted to a story /
 // WhatsApp / Messages. Where that isn't available (most desktops), we report
 // back so the caller can open a fallback modal (preview + download + copy link).
-import type { Event } from "@eventmind/types";
+//
+// ONE flow for both kinds: an event and a community share identically, differing
+// only in the URL segment and the invite wording. Both have a `/story` route and
+// OG metadata, so neither degrades to a link-only share.
+
+/** What is being shared. Doubles as the URL segment (`/event/…`, `/community/…`). */
+export type ShareKind = "event" | "community";
 
 export interface ShareFallback {
-  /** Canonical event link (unfurls as the 1b card when pasted). */
+  /** Canonical link (unfurls as the 1b card when pasted). */
   url: string;
   /** Same-origin route that returns the 1c story PNG. */
   storyUrl: string;
   title: string;
+  /** Carried so the fallback modal can word its heading correctly. */
+  kind: ShareKind;
 }
 
-/** Absolute, shareable URL for an event. */
+/**
+ * Absolute, shareable URL.
+ *
+ * ⚠️ Communities are addressed by the SAME value their cards link to
+ * (`CommunityItem.id`). The `/community/[slug]` route resolves by slug, so if
+ * the API ever returns `slug !== id` the card link and this URL are wrong
+ * together rather than differently — see CLAUDE.md, community slug-vs-id note.
+ */
+export function shareUrl(kind: ShareKind, id: string): string {
+  const path = `/${kind}/${id}`;
+  if (typeof window !== "undefined") return `${window.location.origin}${path}`;
+  return path;
+}
+
+/** Back-compat alias — events were here first. */
 export function eventUrl(id: string): string {
-  if (typeof window !== "undefined") return `${window.location.origin}/event/${id}`;
-  return `/event/${id}`;
+  return shareUrl("event", id);
 }
 
-type ShareableEvent = Pick<Event, "id" | "title"> & { slug?: string };
+interface ShareableItem {
+  id: string;
+  title: string;
+  slug?: string;
+}
 
-export async function shareEvent(
-  event: ShareableEvent,
+export async function shareItem(
+  kind: ShareKind,
+  item: ShareableItem,
 ): Promise<{ shared: boolean; fallback: ShareFallback }> {
-  const url = eventUrl(event.id);
-  const storyUrl = `/event/${event.id}/story`;
-  const fallback: ShareFallback = { url, storyUrl, title: event.title };
+  const url = shareUrl(kind, item.id);
+  const storyUrl = `/${kind}/${item.id}/story`;
+  const fallback: ShareFallback = { url, storyUrl, title: item.title, kind };
+
+  const invite =
+    kind === "community"
+      ? `Join ${item.title} on NewFind`
+      : `You're invited to ${item.title} — join on NewFind`;
 
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
 
@@ -36,17 +67,12 @@ export async function shareEvent(
       const res = await fetch(storyUrl);
       if (res.ok) {
         const blob = await res.blob();
-        const file = new File([blob], `${event.slug || event.id}-newfind.png`, {
+        const file = new File([blob], `${item.slug || item.id}-newfind.png`, {
           type: "image/png",
         });
         if (nav.canShare({ files: [file] })) {
           try {
-            await nav.share({
-              files: [file],
-              title: event.title,
-              text: `You're invited to ${event.title} — join on NewFind`,
-              url,
-            });
+            await nav.share({ files: [file], title: item.title, text: invite, url });
           } catch {
             // User cancelled or the sheet failed — nothing more to do.
           }
@@ -59,4 +85,11 @@ export async function shareEvent(
   }
 
   return { shared: false, fallback };
+}
+
+/** Back-compat wrapper — prefer `shareItem("event", …)`. */
+export async function shareEvent(
+  event: ShareableItem,
+): Promise<{ shared: boolean; fallback: ShareFallback }> {
+  return shareItem("event", event);
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { organizerApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
@@ -107,7 +108,7 @@ export default function OrganizerOnboardingPage() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-2xl mx-auto">
+      <div className={`py-10 max-w-2xl mx-auto ${GUTTERS}`}>
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
             style={{ backgroundColor: "var(--brand-surface)", color: GREEN }}>
@@ -122,7 +123,9 @@ export default function OrganizerOnboardingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* Trust strip: three across from sm up, stacked on a phone where a third
+            of the column truncates "All countries supported". */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           {[
             { icon: "🔒", text: "Data kept private" },
             { icon: "✅", text: "Instant verification" },
@@ -179,7 +182,7 @@ export default function OrganizerOnboardingPage() {
                 />
               </FormField>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <FormField label="Company Email" error={fieldErrors.companyEmail}>
                   <input
                     type="email"
@@ -201,7 +204,7 @@ export default function OrganizerOnboardingPage() {
                 </FormField>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <FormField label="Country of Registration" error={fieldErrors.country}>
                   <select
                     value={country}
@@ -291,7 +294,7 @@ function FormField({
 function inputCls(hasError: boolean): string {
   return (
     "w-full px-4 py-3 rounded-xl text-sm transition-colors " +
-    "placeholder:text-[var(--brand-hint)] focus:outline-none focus:ring-2 " +
+    "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 " +
     (hasError
       ? "border border-red-400 bg-red-50 focus:ring-red-200"
       : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")

@@ -2,16 +2,18 @@
 
 import { use, useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuthStore } from "@eventmind/store";
+import { useAuthStore, useChatUnreadStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 import { BRAND } from "@/lib/theme";
+import { CHAT_WS_BASE } from "@/lib/chat";
 
 const GREEN = BRAND.green;
 const SURFACE = BRAND.surface;
 const ON_GREEN = BRAND.onGreen;
 const TEXT = BRAND.text;
 const BORDER = BRAND.border;
-const WS_BASE = "ws://localhost:8007/chat/ws";
+const WS_BASE = CHAT_WS_BASE;
 
 interface Message {
   sender_id: string;
@@ -51,6 +53,17 @@ function ChatPageInner({ roomId }: { roomId: string }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const tokens = useAuthStore((s) => s.tokens);
   const userId = subFromToken(tokens?.access_token ?? null);
+
+  const setActiveRoom = useChatUnreadStore((s) => s.setActiveRoom);
+  const markRead = useChatUnreadStore((s) => s.markRead);
+
+  // While this room is open it is never "unread": mark it active + read, and
+  // release it on unmount so the navbar glow reflects only OTHER rooms.
+  useEffect(() => {
+    setActiveRoom(roomId);
+    markRead(roomId);
+    return () => setActiveRoom(null);
+  }, [roomId, setActiveRoom, markRead]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -95,23 +108,23 @@ function ChatPageInner({ roomId }: { roomId: string }) {
       <Navbar />
 
       {/* ── Chat header ── */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-[var(--brand-border)] shrink-0">
-        <div className="flex items-center gap-4">
+      <div className={`flex items-center justify-between py-4 border-b border-[var(--brand-border)] shrink-0 ${GUTTERS}`}>
+        <div className="flex items-center gap-4 min-w-0">
           <button onClick={() => router.back()}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--brand-surface)] transition-colors border border-[var(--brand-border)]">
+            className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center hover:bg-[var(--brand-surface)] transition-colors border border-[var(--brand-border)]">
             <svg className="w-4 h-4 text-[var(--brand-hint)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
           </button>
-          <div>
-            <p className="text-[18px] font-bold text-[var(--brand-text)]">{roomName}</p>
+          <div className="min-w-0">
+            <p className="text-[18px] font-bold text-[var(--brand-text)] truncate">{roomName}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-gray-300"}`} />
               <span className="text-[12px] text-[var(--brand-hint)]">{isConnected ? "Live Chat" : "Connecting…"}</span>
             </div>
           </div>
         </div>
-        <button className="p-2 rounded-lg hover:bg-[var(--brand-surface)] transition-colors text-[var(--brand-hint)]">
+        <button className="p-2 shrink-0 rounded-lg hover:bg-[var(--brand-surface)] transition-colors text-[var(--brand-hint)]">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
           </svg>
@@ -119,7 +132,7 @@ function ChatPageInner({ roomId }: { roomId: string }) {
       </div>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+      <div className={`flex-1 overflow-y-auto py-6 space-y-6 ${GUTTERS}`}>
         {connectionError && (
           <div className="text-center py-8">
             <p className="text-[var(--brand-hint)]">Could not connect to the chat service.</p>
@@ -143,7 +156,7 @@ function ChatPageInner({ roomId }: { roomId: string }) {
                 </p>
               )}
               <div
-                className="px-5 py-3 rounded-2xl max-w-[60%] text-[16px] leading-relaxed"
+                className="px-5 py-3 rounded-2xl max-w-[85%] sm:max-w-[60%] text-[16px] leading-relaxed break-words"
                 style={{
                   backgroundColor: isMe ? GREEN : "color-mix(in srgb, var(--brand-text) 7%, transparent)",
                   color: isMe ? ON_GREEN : TEXT,
@@ -163,8 +176,8 @@ function ChatPageInner({ roomId }: { roomId: string }) {
       </div>
 
       {/* ── Input ── */}
-      <div className="px-8 py-5 border-t border-[var(--brand-border)] shrink-0">
-        <div className="flex items-center gap-4">
+      <div className={`py-5 border-t border-[var(--brand-border)] shrink-0 ${GUTTERS}`}>
+        <div className="flex items-center gap-3 sm:gap-4">
           <input
             type="text"
             value={input}
@@ -178,7 +191,7 @@ function ChatPageInner({ roomId }: { roomId: string }) {
           <button
             onClick={sendMessage}
             disabled={!isConnected || !input.trim()}
-            className="w-12 h-12 rounded-full flex items-center justify-center text-[var(--brand-on-green)] transition-colors disabled:opacity-40"
+            className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-[var(--brand-on-green)] transition-colors disabled:opacity-40"
             style={{ backgroundColor: GREEN }}
           >
             <svg className="w-5 h-5 -translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

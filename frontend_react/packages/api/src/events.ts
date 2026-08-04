@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { Event } from "@eventmind/types";
+import type { Event, CurrencyCode } from "@eventmind/types";
 
 export interface EventSearchParams {
   q?: string;
@@ -32,6 +32,8 @@ export interface EventCreateData {
   end_date: string;
   capacity: number;
   price: number;
+  /** ISO 4217 code to charge in. Omitted = the backend's INR default. */
+  currency?: CurrencyCode;
   status: string;
 }
 

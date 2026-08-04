@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLocationStore, CITIES, DEFAULT_CITY } from "@eventmind/store";
 import type { City } from "@eventmind/store";
 import { BRAND } from "@/lib/theme";
+import { LocationPinIcon } from "./EventIcons";
 
 // Theme-aware tokens (resolve via CSS vars, see globals.css)
 const GREEN = BRAND.green;
@@ -114,10 +115,7 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
           aria-label="Select city"
           style={{ color: hovered || open ? GREEN : TEXT }}
         >
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-            <path fill="currentColor" d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-            <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
-          </svg>
+          <LocationPinIcon />
           <span className="text-base whitespace-nowrap">
             {selectedCity.name}
           </span>
@@ -129,13 +127,10 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
           style={{
             backgroundColor: open ? GREEN : SURFACE,
             color: open ? ON_GREEN : TEXT,
-            border: `1px solid ${BORDER}`,
+            border: `2px solid var(--brand-control-border)`,
           }}
         >
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-            <path fill="currentColor" d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-            <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
-          </svg>
+          <LocationPinIcon />
           <span>{selectedCity.name}</span>
           <svg
             className="w-3.5 h-3.5 transition-transform"
@@ -160,7 +155,7 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
       {/* Dropdown */}
       {open && (
         <div
-          className={`absolute top-full mt-2 w-64 rounded-2xl shadow-xl z-50 overflow-hidden ${variant === "icon" ? "left-[-8px]" : "left-0"}`}
+          className={`absolute top-full mt-2 w-64 max-w-[calc(100vw-32px)] rounded-2xl shadow-xl z-50 overflow-hidden ${variant === "icon" ? "left-[-8px]" : "left-0"}`}
           style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}
         >
           {/* Search */}

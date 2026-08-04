@@ -7,6 +7,11 @@ export interface StoredTicket {
   event_title: string;
   start_date: string;
   price_paid: number;
+  /** Currency the ticket was actually paid in — stored per ticket, NOT looked
+   *  up from the event later. Optional because tickets persisted to
+   *  localStorage before this field existed have no value; those fall back to
+   *  the platform default when rendered. */
+  currency?: string;
   seat_info: string;
   qr_hash: string;
   claimed_at: string;

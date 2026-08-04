@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { organizerApi } from "@eventmind/api";
-import { useAuthStore } from "@eventmind/store";
+import { useAuthStore, useChatUnreadStore } from "@eventmind/store";
 import { CityPicker } from "@/components/CityPicker";
 import { BrandLogo } from "@/components/brand";
 import { BRAND } from "@/lib/theme";
@@ -34,7 +34,7 @@ function displayName(email: string | null): string {
 // ── Hover button style helpers ────────────────────────────────────────────────
 // Using inline style + onMouseEnter/Leave to exactly match Flutter's
 // WidgetStateProperty.resolveWith behaviour (bg → green, fg → linen on hover)
-function useHoverStyle(defaultBg = "transparent", defaultFg = TEXT) {
+function useHoverStyle(defaultBg: string = "transparent", defaultFg: string = TEXT) {
   const [hovered, setHovered] = useState(false);
   return {
     style: {
@@ -230,6 +230,49 @@ function BellButton() {
   );
 }
 
+// ── Chat button ───────────────────────────────────────────────────────────────
+// Sits beside the bell. Glows (soft green halo + terracotta dot) whenever any
+// chat room has unread activity — an organiser receiving a message, or an
+// attendee getting a reply. Tapping opens the chat inbox. See ChatPresence.tsx.
+function ChatButton({ hasUnread }: { hasUnread: boolean }) {
+  const router = useRouter();
+  const hover = useHoverStyle("transparent", hasUnread ? GREEN : TEXT);
+  return (
+    <button
+      onClick={() => router.push("/chat")}
+      className={`relative p-2 rounded-md ${hasUnread ? "nf-chat-glow" : ""}`}
+      style={hover.style}
+      onMouseEnter={hover.onMouseEnter}
+      onMouseLeave={hover.onMouseLeave}
+      title={hasUnread ? "Messages — new activity" : "Messages"}
+      aria-label={hasUnread ? "Messages — new activity" : "Messages"}
+    >
+      <svg
+        className="w-[21px] h-[21px]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
+        />
+      </svg>
+      {hasUnread && (
+        <span
+          className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+          style={{
+            backgroundColor: "var(--brand-terracotta)",
+            boxShadow: "0 0 0 2px var(--brand-surface)",
+          }}
+        />
+      )}
+    </button>
+  );
+}
+
 // ── Theme toggle (sun / moon) ───────────────────────────────────────────────
 // Shows a moon in light mode (tap → dark) and a sun in dark mode (tap → light).
 function ThemeToggle() {
@@ -297,6 +340,9 @@ export function Navbar() {
 
   const isOrganizer = !!organizerProfile;
 
+  const unreadRooms = useChatUnreadStore((s) => s.unreadRooms);
+  const hasUnread = Object.keys(unreadRooms).length > 0;
+
   const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -339,7 +385,7 @@ export function Navbar() {
     { emoji: "👥", label: "My Community",        onTap: () => { closeAll(); router.push(isAuthenticated ? "/community/create" : "/auth"); } },
   ];
 
-  const searchPlaceholder = "Search events or communities";
+  const searchPlaceholder = "Find events/communities";
 
   return (
     <>
@@ -361,18 +407,23 @@ export function Navbar() {
           <div className="hidden lg:flex items-center flex-1">
             <div className="w-6 shrink-0" />
 
-            {/* ── Search bar ── */}
+            {/* ── Search bar ──
+                The desktop cluster switches on at lg (1024px), but at its xl
+                width the whole row measures ~1135px — so between 1024 and 1280
+                every page carried a horizontal scrollbar. The search box is the
+                only elastic element in the row, so it takes the difference and
+                grows back to its full width at xl. */}
             <div onMouseEnter={closeAll} className="shrink-0">
               <div
-                className="flex items-center w-[360px] xl:w-[400px] h-10 rounded-lg px-3 gap-2"
-                style={{ backgroundColor: LINEN, border: `1.5px solid ${NAV_BORDER}` }}
+                className="flex items-center w-[280px] xl:w-[440px] h-10 rounded-lg px-3 gap-2"
+                style={{ backgroundColor: LINEN, border: `1.5px solid ${GREEN}` }}
                 onMouseEnter={() => setSearchActive(true)}
                 onMouseLeave={() => setSearchActive(false)}
               >
                 <svg
                   className="w-4 h-4 shrink-0 transition-colors"
                   viewBox="0 0 20 20"
-                  style={{ fill: searchActive ? TEXT : HINT }}
+                  style={{ fill: searchActive ? GREEN : HINT }}
                 >
                   <path
                     fillRule="evenodd"
@@ -424,6 +475,10 @@ export function Navbar() {
               <>
                 <div className="w-2" />
                 <div onMouseEnter={closeAll}>
+                  <ChatButton hasUnread={hasUnread} />
+                </div>
+                <div className="w-2" />
+                <div onMouseEnter={closeAll}>
                   <BellButton />
                 </div>
               </>
@@ -470,17 +525,17 @@ export function Navbar() {
             className="lg:hidden px-4 sm:px-6 pb-5 pt-1 flex flex-col gap-4 max-h-[calc(100vh-72px)] overflow-y-auto"
             style={{ backgroundColor: LINEN, borderTop: `1px solid ${BORDER}` }}
           >
-            {/* Search */}
+            {/* Search + inline city picker — one row, mirrors the desktop bar */}
             <div
-              className="flex items-center h-11 rounded-lg px-3 gap-2"
-              style={{ backgroundColor: LINEN, border: `1.5px solid ${NAV_BORDER}` }}
+              className="flex items-center h-14 rounded-lg px-3 gap-2"
+              style={{ backgroundColor: LINEN, border: `1.5px solid ${GREEN}` }}
               onMouseEnter={() => setSearchActive(true)}
               onMouseLeave={() => setSearchActive(false)}
             >
               <svg
                 className="w-4 h-4 shrink-0 transition-colors"
                 viewBox="0 0 20 20"
-                style={{ fill: searchActive ? TEXT : HINT }}
+                style={{ fill: searchActive ? GREEN : HINT }}
               >
                 <path
                   fillRule="evenodd"
@@ -498,11 +553,8 @@ export function Navbar() {
                 className="flex-1 text-base bg-transparent outline-none min-w-0"
                 style={{ color: TEXT }}
               />
-            </div>
-
-            {/* City picker */}
-            <div className="px-0.5">
-              <CityPicker />
+              <div className="w-px self-stretch shrink-0" style={{ backgroundColor: NAV_BORDER }} />
+              <CityPicker variant="inline" />
             </div>
 
             {/* Theme toggle */}
@@ -528,6 +580,7 @@ export function Navbar() {
               </Link>
             ) : (
               <div className="flex flex-col">
+                <MobileNavButton emoji="💬" label="Messages" showDot={hasUnread} onTap={() => { setMobileOpen(false); router.push("/chat"); }} />
                 <MobileNavButton emoji="🎟️" label="My Dashboard" onTap={() => { setMobileOpen(false); router.push("/dashboard"); }} />
                 <MobileNavButton emoji="❤️" label="My Wishlist" onTap={() => { setMobileOpen(false); router.push("/dashboard?tab=wishlist"); }} />
                 {isOrganizer && (
@@ -579,7 +632,7 @@ function MobileThemeRow() {
   );
 }
 
-function MobileNavButton({ emoji, label, onTap }: { emoji: string; label: string; onTap: () => void }) {
+function MobileNavButton({ emoji, label, onTap, showDot }: { emoji: string; label: string; onTap: () => void; showDot?: boolean }) {
   return (
     <button
       onClick={onTap}
@@ -588,6 +641,12 @@ function MobileNavButton({ emoji, label, onTap }: { emoji: string; label: string
     >
       <span className="text-lg leading-none">{emoji}</span>
       {label}
+      {showDot && (
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: "var(--brand-terracotta)" }}
+        />
+      )}
     </button>
   );
 }

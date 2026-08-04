@@ -232,34 +232,38 @@ events = [
      "start_date": d(7, 6), "end_date": d(7, 8)},
 
     # ── ONLINE ──
+    # "online" is a FORMAT (event_type), not a category — these carry real
+    # categories like every other event, so an online event is still a Technology
+    # or Education event. Do NOT set "category": "online" here again: it makes the
+    # two mutually exclusive and the category chip loses its meaning.
     {"title": "Live Coding: Build a RAG App in 60 Minutes",
      "description": "Build a retrieval-augmented generation app using LangChain, Pinecone, and FastAPI.",
-     "category": "online", "location": ONLINE, "price": 0, "capacity": 500,
+     "category": "technology", "event_type": "Online", "location": ONLINE, "price": 0, "capacity": 500,
      "start_date": d(3), "end_date": d(3, 2)},
 
     {"title": "Remote Engineering Leaders — Monthly Roundtable",
      "description": "Virtual roundtable for engineering managers and CTOs on remote culture and async workflows.",
-     "category": "online", "location": ONLINE, "price": 0, "capacity": 200,
+     "category": "networking", "event_type": "Online", "location": ONLINE, "price": 0, "capacity": 200,
      "start_date": d(4), "end_date": d(4, 2)},
 
     {"title": "Intro to Generative AI — No Code Required",
      "description": "Beginner-friendly walkthrough of how LLMs work and how to use them in your work.",
-     "category": "online", "location": ONLINE, "price": 0, "capacity": 500,
+     "category": "education", "event_type": "Online", "location": ONLINE, "price": 0, "capacity": 500,
      "start_date": d(1), "end_date": d(1, 2)},
 
     {"title": "React & Next.js Advanced Patterns",
      "description": "A deep dive into server components, streaming, and advanced caching in Next.js App Router.",
-     "category": "online", "location": ONLINE, "price": 599, "capacity": 150,
+     "category": "technology", "event_type": "Online", "location": ONLINE, "price": 599, "capacity": 150,
      "start_date": d(8, 17), "end_date": d(8, 20)},
 
     {"title": "Python for Data Science — Weekend Bootcamp",
      "description": "A free two-day bootcamp covering Python essentials, pandas, and machine learning basics.",
-     "category": "online", "location": ONLINE, "price": 0, "capacity": 500,
+     "category": "education", "event_type": "Online", "location": ONLINE, "price": 0, "capacity": 500,
      "start_date": d(5, 9), "end_date": d(6, 17)},
 
     {"title": "UX Design Fundamentals — Live Workshop",
      "description": "Master the fundamentals of user experience design in this live, interactive online workshop.",
-     "category": "online", "location": ONLINE, "price": 399, "capacity": 200,
+     "category": "creative", "event_type": "Online", "location": ONLINE, "price": 399, "capacity": 200,
      "start_date": d(6, 14), "end_date": d(6, 17)},
 ]
 

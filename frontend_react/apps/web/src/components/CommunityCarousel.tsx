@@ -3,8 +3,10 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useWishlistStore } from '@eventmind/store'
 import { BRAND } from '@/lib/theme'
+import { LocationPinIcon } from './EventIcons'
+import { CardTagRow, type BadgeType } from './EventBadges'
+import { EventShareButton, EventWishlistButton } from './EventActions'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,7 +20,8 @@ export interface CommunityItem {
   memberCount: string
   imageUrl: string
   badge?: string
-  badgeType?: 'free' | 'selling-fast' | 'today' | 'sold-out' | 'recommended'
+  /** Communities carry ONE status tag; events carry an array (`badgeTypes`). */
+  badgeType?: BadgeType
   isSoldOut?: boolean
   category: string
   organiser?: string
@@ -44,15 +47,16 @@ const ON_GREEN = BRAND.onGreen  // linen-as-text-on-green → stays light-on-gre
 const BORDER = BRAND.border
 const TEXT = BRAND.text
 const MUTED = BRAND.hint
+// Sold-out/full button FILL — see the matching note in EventsCarousel.tsx.
+const MUTED_FILL = BRAND.muted
 const NAV_BORDER = BRAND.navBorder
+// Outline CONTROLS (the filter tabs) — see the matching note in EventsCarousel.tsx.
+const CONTROL_BORDER = BRAND.controlBorder
 
-const BADGE_CONFIG = {
-  'free': { bg: '#DC2626', text: '#F2EFEA', label: 'Free' },
-  'recommended': { bg: '#7C3AED', text: '#F2EFEA', label: 'Recommended' },
-  'selling-fast': { bg: '#D97706', text: '#F2EFEA', label: 'Selling Fast' },
-  'today': { bg: '#2563EB', text: '#F2EFEA', label: 'Today' },
-  'sold-out': { bg: '#6B7280', text: '#F2EFEA', label: 'Sold Out' },
-} as const
+// Status tags, the share control and the wishlist control all come from the
+// shared components now (./EventBadges, ./EventActions) — this file used to keep
+// its own stale copies, which is how communities ended up looking nothing like
+// events. Do not re-add a local BADGE_CONFIG, ShareButton or HeartButton here.
 
 const FILTER_TABS = ['All', 'Recommended', 'Tech', 'Arts', 'Sports', 'Food']
 const ONLINE_FILTER_TABS = ['All', 'Recommended', 'Free', 'This Week', 'Selling Fast']
@@ -296,85 +300,12 @@ function SkeletonCard() {
   )
 }
 
-// ─── Share button ─────────────────────────────────────────────────────────────
+// ─── Share + wishlist controls ────────────────────────────────────────────────
 
-function ShareButton() {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-        aria-label="Share community"
-        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-        style={{ backgroundColor: LINEN }}
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
-          stroke={hovered ? GREEN : MUTED} strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round"
-            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-        </svg>
-      </button>
-      {hovered && (
-        <span className="text-[16px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: LINEN, color: GREEN }}>
-          Share
-        </span>
-      )}
-    </div>
-  )
-}
-
-// ─── Heart / favourite button ──────────────────────────────────────────────────
-
-function HeartButton({ community }: { community: CommunityItem }) {
-  const toggle = useWishlistStore((s) => s.toggleItem)
-  const liked = useWishlistStore((s) => s.items.some((i) => i.id === community.id))
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div className="flex items-center gap-1.5">
-      {(hovered || liked) && (
-        <span className="text-[16px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: LINEN, color: GREEN }}>
-          {liked ? 'Added!' : 'Add to wishlist'}
-        </span>
-      )}
-      <button
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          toggle({
-            kind: 'community',
-            id: community.id,
-            title: community.title,
-            date: community.date,
-            time: community.time,
-            venue: community.venue,
-            price: community.price,
-            imageUrl: community.imageUrl,
-            badge: community.badge,
-            badgeType: community.badgeType,
-            isSoldOut: community.isSoldOut,
-            category: community.category,
-            memberCount: community.memberCount,
-          })
-        }}
-        aria-label={liked ? 'Remove from wishlist' : 'Add to wishlist'}
-        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform active:scale-90"
-        style={{ backgroundColor: LINEN }}
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24"
-          fill={liked ? GREEN : 'none'} stroke={liked ? GREEN : MUTED} strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round"
-            d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-        </svg>
-      </button>
-    </div>
-  )
-}
+// Deleted — both now come from ./EventActions with kind="community", so a
+// community card's controls are the same components the event cards render.
+// The old local ShareButton here was also a dead stub (it did nothing on click);
+// the shared one actually shares.
 
 // ─── Edit location button ─────────────────────────────────────────────────────
 
@@ -418,7 +349,6 @@ export function CommunityCardItem({
   onJoin?: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const badgeCfg = community.badgeType ? BADGE_CONFIG[community.badgeType] : null
 
   return (
     <Link
@@ -443,16 +373,16 @@ export function CommunityCardItem({
           className="object-cover"
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><ShareButton /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><HeartButton community={community} /></div>
-        {badgeCfg && !community.isSoldOut && (
-          <div className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-            <span className="px-2.5 py-1 rounded-full text-[16px] font-bold"
-              style={{ backgroundColor: badgeCfg.bg, color: badgeCfg.text }}>
-              {badgeCfg.label}
-            </span>
-          </div>
-        )}
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton item={community} kind="community" /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton item={community} kind="community" /></div>
+        {/* Category left, status badge right — the same pairing the event cards
+            use, so an event and a community sitting side by side in the mixed
+            /explore grid read as the same kind of thing. */}
+        <CardTagRow
+          category={community.category}
+          types={community.isSoldOut || !community.badgeType ? undefined : [community.badgeType]}
+          className={`absolute bottom-2 left-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        />
       </div>
 
       {/* Card body */}
@@ -488,7 +418,7 @@ export function CommunityCardItem({
           </div>
         </div>
 
-        {/* Member count (left) + Join button (right) */}
+        {/* Member count (left) + View details button (right) */}
         <div className="flex items-center justify-between mt-auto pt-1.5 gap-2">
           <span>
             {community.isSoldOut ? (
@@ -501,17 +431,17 @@ export function CommunityCardItem({
             )}
           </span>
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onJoin?.(community.id) }}
-            aria-label={`Join ${community.title}`}
+            onClick={(e) => { if (onJoin) { e.preventDefault(); e.stopPropagation(); onJoin(community.id) } }}
+            aria-label={`View details for ${community.title}`}
             disabled={community.isSoldOut}
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
-              backgroundColor: community.isSoldOut ? MUTED : GREEN,
+              backgroundColor: community.isSoldOut ? MUTED_FILL : GREEN,
               color: ON_GREEN,
               cursor: community.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
-            {community.isSoldOut ? 'Full' : 'Join'}
+            {community.isSoldOut ? 'Full' : 'View details'}
           </button>
         </div>
       </div>
@@ -529,7 +459,6 @@ function OnlineCommunityCard({
   onJoin?: (id: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const badgeCfg = community.badgeType ? BADGE_CONFIG[community.badgeType] : null
 
   return (
     <Link
@@ -555,16 +484,16 @@ function OnlineCommunityCard({
           sizes="(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)"
           style={{ transform: hovered ? 'scale(1.05)' : 'scale(1)', transition: 'transform 0.3s ease' }}
         />
-        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><ShareButton /></div>
-        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><HeartButton community={community} /></div>
-        {badgeCfg && !community.isSoldOut && (
-          <div className={`absolute bottom-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-            <span className="px-2.5 py-1 rounded-full text-[16px] font-bold"
-              style={{ backgroundColor: badgeCfg.bg, color: badgeCfg.text }}>
-              {badgeCfg.label}
-            </span>
-          </div>
-        )}
+        <div className={`absolute top-2 left-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventShareButton item={community} kind="community" /></div>
+        <div className={`absolute top-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}><EventWishlistButton item={community} kind="community" /></div>
+        {/* Category left, status badge right — the same pairing the event cards
+            use, so an event and a community sitting side by side in the mixed
+            /explore grid read as the same kind of thing. */}
+        <CardTagRow
+          category={community.category}
+          types={community.isSoldOut || !community.badgeType ? undefined : [community.badgeType]}
+          className={`absolute bottom-2 left-2 right-2 transition-opacity duration-150 ${hovered ? 'opacity-100' : 'opacity-0'}`}
+        />
       </div>
 
       {/* Card body */}
@@ -600,7 +529,7 @@ function OnlineCommunityCard({
           </div>
         </div>
 
-        {/* Member count (left) + Join button (right) */}
+        {/* Member count (left) + View details button (right) */}
         <div className="flex items-center justify-between mt-auto pt-1.5 gap-2">
           <span>
             {community.isSoldOut ? (
@@ -613,17 +542,17 @@ function OnlineCommunityCard({
             )}
           </span>
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onJoin?.(community.id) }}
-            aria-label={`Join ${community.title}`}
+            onClick={(e) => { if (onJoin) { e.preventDefault(); e.stopPropagation(); onJoin(community.id) } }}
+            aria-label={`View details for ${community.title}`}
             disabled={community.isSoldOut}
             className="shrink-0 px-4 py-1.5 rounded-xl text-[20px] font-bold transition-all duration-150 active:scale-[0.98]"
             style={{
-              backgroundColor: community.isSoldOut ? MUTED : GREEN,
+              backgroundColor: community.isSoldOut ? MUTED_FILL : GREEN,
               color: ON_GREEN,
               cursor: community.isSoldOut ? 'not-allowed' : 'pointer',
             }}
           >
-            {community.isSoldOut ? 'Full' : 'Join'}
+            {community.isSoldOut ? 'Full' : 'View details'}
           </button>
         </div>
       </div>
@@ -667,13 +596,13 @@ function OnlineCommunitiesRow({
     <section aria-label="Online Communities" className="pb-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-4">
-        <h2 className="font-extrabold tracking-[-0.5px]" style={{ fontSize: "clamp(22px, 4vw, 30px)", color: TEXT }}>
+        <h2 className="font-extrabold tracking-[-0.5px]" style={{ fontSize: "clamp(18px, 4vw, 30px)", color: TEXT }}>
           Online Communities
         </h2>
         <Link
           href={seeAllHref}
           aria-label="View all online communities"
-          className="flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
+          className="hidden sm:flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
           style={{ color: GREEN }}
         >
           View all
@@ -696,8 +625,8 @@ function OnlineCommunitiesRow({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
-                    : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }
+                    : { backgroundColor: 'transparent', color: TEXT, border: `2px solid ${CONTROL_BORDER}` }
                 }
               >
                 {tab}
@@ -754,11 +683,13 @@ function SeeAllTile({ communities, href }: { communities: CommunityItem[]; href:
       className="rounded-2xl flex flex-col items-center justify-center gap-5"
       style={{
         backgroundColor: tileBg,
-        border: `1px solid ${NAV_BORDER}`,
+        // Borderless at rest, exactly like CommunityCardItem — see the matching
+        // note on SeeAllTile in EventsCarousel.tsx.
+        border: hovered ? `2px solid ${GREEN}` : '2px solid transparent',
         minHeight: 240,
-        boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.04)',
+        boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',
         transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'transform 0.3s ease, box-shadow 0.3s ease, background-color 0.15s ease',
+        transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.15s ease',
       }}
     >
       {/* 2×2 preview grid */}
@@ -793,22 +724,6 @@ function SeeAllTile({ communities, href }: { communities: CommunityItem[]; href:
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
 
-function CalendarIcon({ color = TEXT }: { color?: string }) {
-  return (
-    <svg className="w-4 h-4 shrink-0" viewBox="0 0 1024 1024" fill={color}>
-      <path d="M960 95.888l-256.224.001V32.113c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76h-256v-63.76c0-17.68-14.32-32-32-32s-32 14.32-32 32v63.76H64c-35.344 0-64 28.656-64 64v800c0 35.343 28.656 64 64 64h896c35.344 0 64-28.657 64-64v-800c0-35.329-28.656-63.985-64-63.985zm0 863.985H64v-800h255.776v32.24c0 17.679 14.32 32 32 32s32-14.321 32-32v-32.224h256v32.24c0 17.68 14.32 32 32 32s32-14.32 32-32v-32.24H960v799.984zM736 511.888h64c17.664 0 32-14.336 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32zm0 255.984h64c17.664 0 32-14.32 32-32v-64c0-17.664-14.336-32-32-32h-64c-17.664 0-32 14.336-32 32v64c0 17.696 14.336 32 32 32zm-192-128h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32zm0-255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm-256 0h-64c-17.664 0-32 14.336-32 32v64c0 17.664 14.336 32 32 32h64c17.664 0 32-14.336 32-32v-64c0-17.68-14.336-32-32-32zm0 255.984h-64c-17.664 0-32 14.336-32 32v64c0 17.68 14.336 32 32 32h64c17.664 0 32-14.32 32-32v-64c0-17.648-14.336-32-32-32z" />
-    </svg>
-  )
-}
-
-function LocationPinIcon({ color = TEXT }: { color?: string }) {
-  return (
-    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-      <path fill={color} d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" />
-      <circle cx="12" cy="9" r="2.6" fill="var(--brand-surface)" />
-    </svg>
-  )
-}
 
 function VideoCallIcon({ color = TEXT }: { color?: string }) {
   return (
@@ -854,7 +769,7 @@ export function CommunityCarousel({
 
       {/* ── Section header ── */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-12 mb-5">
-        <h2 className="font-extrabold tracking-[-0.5px] flex items-center gap-1" style={{ fontSize: "clamp(22px, 4vw, 30px)", color: TEXT }}>
+        <h2 className="font-extrabold tracking-[-0.5px] flex items-center gap-1" style={{ fontSize: "clamp(18px, 4vw, 30px)", color: TEXT }}>
           Communities in{' '}
           <span className="relative inline-flex items-center gap-2">
             <span style={{ color: GREEN }}>{location}</span>
@@ -864,7 +779,7 @@ export function CommunityCarousel({
         <Link
           href={seeAllHref}
           aria-label={`View all communities in ${location}`}
-          className="flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
+          className="hidden sm:flex items-center gap-1.5 text-lg font-semibold transition-opacity hover:opacity-70"
           style={{ color: GREEN }}
         >
           View all
@@ -887,8 +802,8 @@ export function CommunityCarousel({
                 className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
-                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `1.5px solid ${GREEN}` }
-                    : { backgroundColor: 'transparent', color: TEXT, border: `1.5px solid ${BORDER}` }
+                    ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }
+                    : { backgroundColor: 'transparent', color: TEXT, border: `2px solid ${CONTROL_BORDER}` }
                 }
               >
                 {tab}
