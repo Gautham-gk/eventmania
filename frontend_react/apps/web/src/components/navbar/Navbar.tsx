@@ -231,16 +231,16 @@ function BellButton() {
 }
 
 // ── Chat button ───────────────────────────────────────────────────────────────
-// Sits beside the bell. Glows (soft green halo + terracotta dot) whenever any
-// chat room has unread activity — an organiser receiving a message, or an
-// attendee getting a reply. Tapping opens the chat inbox. See ChatPresence.tsx.
+// Sits beside the bell. Turns green + shows a terracotta dot whenever any chat
+// room has unread activity — an organiser receiving a message, or an attendee
+// getting a reply. Tapping opens the chat inbox. See ChatPresence.tsx.
 function ChatButton({ hasUnread }: { hasUnread: boolean }) {
   const router = useRouter();
   const hover = useHoverStyle("transparent", hasUnread ? GREEN : TEXT);
   return (
     <button
       onClick={() => router.push("/chat")}
-      className={`relative p-2 rounded-md ${hasUnread ? "nf-chat-glow" : ""}`}
+      className="relative p-2 rounded-md"
       style={hover.style}
       onMouseEnter={hover.onMouseEnter}
       onMouseLeave={hover.onMouseLeave}

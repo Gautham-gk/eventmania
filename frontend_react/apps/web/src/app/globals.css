@@ -265,26 +265,3 @@ optgroup {
   .nf-chip-selected { animation: none !important; }
   .nf-chip:active   { transform: none; }
 }
-
-/* ── Navbar chat button "glow" (unread messages) ──────────────────────────────
-   A soft green halo that breathes around the rounded button while a chat room
-   has unread activity. box-shadow (not a filter) so it follows the button's
-   border radius. Reduced-motion keeps a steady halo instead of pulsing. */
-@keyframes nf-chat-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-green) 28%, transparent),
-                0 0 7px 1px color-mix(in srgb, var(--brand-green) 30%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-green) 55%, transparent),
-                0 0 15px 4px color-mix(in srgb, var(--brand-green) 55%, transparent);
-  }
-}
-.nf-chat-glow { animation: nf-chat-glow 1.9s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .nf-chat-glow {
-    animation: none !important;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-green) 40%, transparent),
-                0 0 10px 2px color-mix(in srgb, var(--brand-green) 40%, transparent);
-  }
-}
