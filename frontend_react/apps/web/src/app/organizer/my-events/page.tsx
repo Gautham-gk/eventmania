@@ -6,8 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { eventsApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 
-const GREEN = "#184E4A";
+const GREEN = "var(--brand-green)";
 
 function subFromToken(token: string | null): string {
   if (!token) return "";
@@ -48,33 +49,33 @@ export default function MyOrganisedEventsPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-5xl mx-auto">
+      <div className={`py-10 max-w-5xl mx-auto ${GUTTERS}`}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push("/")}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-              style={{ border: "1px solid #E2DDD5", backgroundColor: "white" }}
+              style={{ border: "1px solid var(--brand-border)", backgroundColor: "var(--brand-surface)" }}
               title="Back to Home"
             >
-              <svg className="w-4 h-4" style={{ color: "#6B7280" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" style={{ color: "var(--brand-hint)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
               </svg>
             </button>
             <div>
-              <h1 className="text-[28px] font-bold" style={{ color: "#111827" }}>My Organised Events</h1>
-              <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
+              <h1 className="text-[28px] font-bold" style={{ color: "var(--brand-text)" }}>My Organised Events</h1>
+              <p className="text-[18px] mt-1" style={{ color: "var(--brand-hint)" }}>
                 Events you have published on EventMind
               </p>
             </div>
           </div>
           <button
             onClick={() => router.push("/organizer/create")}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[#F2EFEA] transition-colors"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[var(--brand-on-green)] transition-colors shrink-0 self-start"
             style={{ backgroundColor: GREEN }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -92,39 +93,42 @@ export default function MyOrganisedEventsPage() {
           </div>
         ) : !events || events.length === 0 ? (
           <div className="flex flex-col items-center py-24 gap-5 rounded-2xl"
-            style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}>
+            style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
             <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
-              style={{ backgroundColor: "#F2EFEA" }}>
+              style={{ backgroundColor: "var(--brand-bg)" }}>
               📋
             </div>
             <div className="text-center">
-              <p className="text-[17px] font-bold mb-1" style={{ color: "#111827" }}>No events yet</p>
-              <p className="text-sm" style={{ color: "#6B7280" }}>
+              <p className="text-[18px] font-bold mb-1" style={{ color: "var(--brand-text)" }}>No events yet</p>
+              <p className="text-[16px]" style={{ color: "var(--brand-hint)" }}>
                 Events you create will appear here.
               </p>
             </div>
             <button
               onClick={() => router.push("/organizer/create")}
-              className="px-6 py-3 rounded-xl text-sm font-bold text-[#F2EFEA]"
+              className="px-6 py-3 rounded-xl text-sm font-bold text-[var(--brand-on-green)]"
               style={{ backgroundColor: GREEN }}
             >
               Create your first event
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #E2DDD5" }}>
-            <table className="w-full">
+          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--brand-border)" }}>
+            {/* Six columns have no honest narrow layout — the table keeps its
+                width and scrolls inside the card. */}
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
               <thead>
-                <tr style={{ backgroundColor: "#F9F8F6", borderBottom: "1px solid #E2DDD5" }}>
+                <tr style={{ backgroundColor: "var(--brand-surface)", borderBottom: "1px solid var(--brand-border)" }}>
                   {["Event", "City", "Date", "Type", "Status", ""].map((h) => (
                     <th key={h} className="text-left px-5 py-4 text-xs font-bold uppercase tracking-wide"
-                      style={{ color: "#6B7280" }}>
+                      style={{ color: "var(--brand-hint)" }}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody style={{ backgroundColor: "#F2EFEA" }}>
+              <tbody style={{ backgroundColor: "var(--brand-bg)" }}>
                 {events.map((ev, i) => {
                   const loc = ev.location as Record<string, unknown>;
                   const cityName = (loc?.address as string)?.split(",").slice(-2).join(",").trim() ?? "—";
@@ -132,22 +136,22 @@ export default function MyOrganisedEventsPage() {
                   return (
                     <tr
                       key={ev.id}
-                      style={{ borderBottom: i < events.length - 1 ? "1px solid #E2DDD5" : "none" }}
+                      style={{ borderBottom: i < events.length - 1 ? "1px solid var(--brand-border)" : "none" }}
                     >
                       <td className="px-5 py-4">
-                        <p className="text-sm font-semibold" style={{ color: "#111827" }}>{ev.title}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "#9CA3AF" }}>{ev.category}</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--brand-text)" }}>{ev.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--brand-hint)" }}>{ev.category}</p>
                       </td>
-                      <td className="px-5 py-4 text-sm" style={{ color: "#6B7280" }}>
+                      <td className="px-5 py-4 text-sm" style={{ color: "var(--brand-hint)" }}>
                         {isOnline ? "Online" : cityName || "—"}
                       </td>
-                      <td className="px-5 py-4 text-sm" style={{ color: "#6B7280" }}>
+                      <td className="px-5 py-4 text-sm" style={{ color: "var(--brand-hint)" }}>
                         {formatDate(ev.start_date)}
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-xs px-2 py-1 rounded-md font-medium"
                           style={{
-                            backgroundColor: isOnline ? "#EEF2FF" : "#F0F7F6",
+                            backgroundColor: isOnline ? "color-mix(in srgb, #4F46E5 14%, transparent)" : "color-mix(in srgb, var(--brand-green) 10%, transparent)",
                             color: isOnline ? "#4F46E5" : GREEN,
                           }}>
                           {isOnline ? "Online" : "In-Person"}
@@ -155,7 +159,7 @@ export default function MyOrganisedEventsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-xs px-2 py-1 rounded-md font-medium"
-                          style={{ backgroundColor: "#F0FDF4", color: "#16A34A" }}>
+                          style={{ backgroundColor: "color-mix(in srgb, #16A34A 16%, transparent)", color: "#16A34A" }}>
                           {ev.status.toUpperCase()}
                         </span>
                       </td>
@@ -173,6 +177,7 @@ export default function MyOrganisedEventsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

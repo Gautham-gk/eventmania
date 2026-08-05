@@ -123,6 +123,13 @@ def normalize_event(ev: dict, segment_hint: Optional[str] = None) -> Optional[di
 
     price_ranges = ev.get("priceRanges") or []
     price = float(min((p.get("min", 0) for p in price_ranges), default=0) or 0)
+    # Ticketmaster quotes in the venue's local currency, NOT rupees. Take the
+    # provider's own code and fall back to USD (its dominant market) rather than
+    # the platform default — an INR fallback would relabel a $45 ticket as ₹45.
+    currency = next(
+        (p["currency"] for p in price_ranges if p.get("currency")),
+        "USD",
+    )
 
     description = ev.get("info") or ev.get("pleaseNote") \
         or f"{title} — tickets and details available on Ticketmaster."
@@ -141,6 +148,7 @@ def normalize_event(ev: dict, segment_hint: Optional[str] = None) -> Optional[di
         "end_date": end.isoformat(),
         "capacity": 0,
         "price": price,
+        "currency": currency,
         "status": "published",
         "source": SOURCE,
         "external_id": external_id,

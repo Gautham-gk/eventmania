@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import type { AuthTokens } from "@eventmind/types";
 import { isAxiosError } from "@eventmind/api";
+import { BrandLogo } from "@/components/brand";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -17,6 +18,19 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // When a sign-in fails because the email has no account, we flip to the
+  // sign-up form (keeping the entered email/password) and drop the cursor into
+  // the Full Name field — the only thing left for the user to fill in.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [focusNameOnSignup, setFocusNameOnSignup] = useState(false);
+
+  useEffect(() => {
+    if (!isLogin && focusNameOnSignup) {
+      nameRef.current?.focus();
+      setFocusNameOnSignup(false);
+    }
+  }, [isLogin, focusNameOnSignup]);
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
@@ -40,6 +54,12 @@ export default function AuthPage() {
       if (isAxiosError(err)) {
         if (!err.response) {
           setError("Cannot reach the server. Is the backend running on port 8000?");
+        } else if (isLogin && err.response.data?.detail === "email_not_registered") {
+          // No account for this email — carry the entered credentials into the
+          // sign-up form so the user only needs to add their name.
+          setIsLogin(false);
+          setFocusNameOnSignup(true);
+          setError("This email isn't registered with us. Please sign up to continue.");
         } else {
           setError(err.response.data?.detail ?? `Error ${err.response.status}`);
         }
@@ -52,18 +72,16 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="flex min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       {/* Left panel — hidden on small screens */}
       <div className="hidden lg:flex lg:flex-1 items-center justify-center p-16"
-        style={{ background: "linear-gradient(135deg, #F3FAFA 0%, #E5F6F6 100%)" }}>
+        style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 8%, var(--brand-surface)) 0%, color-mix(in srgb, var(--brand-green) 16%, var(--brand-surface)) 100%)" }}>
         <div className="max-w-md">
-          <div className="w-24 h-24 rounded-2xl bg-[#184E4A] flex items-center justify-center mb-10">
-            <span className="text-[#F2EFEA] text-3xl font-bold">E</span>
-          </div>
-          <h1 className="text-5xl font-extrabold text-[#111827] leading-tight mb-6">
+          <BrandLogo markSize={70} gap={14} className="mb-10" style={{ color: "var(--brand-on-green)" }} />
+          <h1 className="text-[42px] font-extrabold text-[var(--brand-text)] leading-tight mb-6">
             Unlock Your Next<br />Great Experience.
           </h1>
-          <p className="text-xl text-[#4B5563] leading-relaxed">
+          <p className="text-xl text-[var(--brand-hint)] leading-relaxed">
             Join thousands of attendees discovering AI summits, tech workshops,
             and networking events daily.
           </p>
@@ -71,12 +89,12 @@ export default function AuthPage() {
       </div>
 
       {/* Right panel — auth form */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12 lg:px-20" style={{ backgroundColor: "#F2EFEA" }}>
+      <div className="flex flex-1 items-center justify-center px-6 py-12 lg:px-20" style={{ backgroundColor: "var(--brand-bg)" }}>
         <div className="w-full max-w-md">
-          <h2 className="text-3xl font-bold text-[#111827] mb-3">
+          <h2 className="text-3xl font-bold text-[var(--brand-text)] mb-3">
             {isLogin ? "Welcome Back" : "Create Account"}
           </h2>
-          <p className="text-[#6B7280] mb-10">
+          <p className="text-[var(--brand-hint)] mb-10">
             {isLogin
               ? "Sign in to access your dashboard and event tickets."
               : "Join the EventMind community to start your journey."}
@@ -86,6 +104,7 @@ export default function AuthPage() {
             {!isLogin && (
               <Field label="Full Name">
                 <input
+                  ref={nameRef}
                   type="text"
                   required
                   value={name}
@@ -126,8 +145,8 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 rounded-2xl bg-[#184E4A] text-[#F2EFEA] text-lg font-bold
-                         hover:bg-[#133d39] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-[var(--brand-green)] text-[var(--brand-on-green)] text-lg font-bold
+                         hover:bg-[var(--brand-green-hover)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? "Please wait…" : isLogin ? "Sign In" : "Sign Up"}
             </button>
@@ -136,7 +155,7 @@ export default function AuthPage() {
           <div className="mt-8 text-center">
             <button
               onClick={() => { setIsLogin(!isLogin); setError(null); }}
-              className="text-[#4B5563] font-semibold hover:text-[#184E4A] transition-colors"
+              className="text-[var(--brand-hint)] font-semibold hover:text-[var(--brand-green)] transition-colors"
             >
               {isLogin
                 ? "Don't have an account? Sign Up"
@@ -145,9 +164,9 @@ export default function AuthPage() {
           </div>
 
           <div className="my-8 flex items-center gap-4">
-            <div className="flex-1 h-px bg-[#E2DDD5]" />
-            <span className="text-[#9CA3AF] font-semibold text-sm">OR</span>
-            <div className="flex-1 h-px bg-[#E2DDD5]" />
+            <div className="flex-1 h-px bg-[var(--brand-border)]" />
+            <span className="text-[var(--brand-hint)] font-semibold text-sm">OR</span>
+            <div className="flex-1 h-px bg-[var(--brand-border)]" />
           </div>
 
           <div className="space-y-4">
@@ -161,14 +180,14 @@ export default function AuthPage() {
 }
 
 const inputCls =
-  "w-full px-4 py-3 rounded-xl border border-[#E2DDD5] bg-[#F2EFEA] text-[#111827] " +
-  "placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#184E4A]/30 " +
-  "focus:border-[#184E4A] transition-colors";
+  "w-full px-4 py-3 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] " +
+  "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)]/30 " +
+  "focus:border-[var(--brand-green)] transition-colors";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-[#111827]">{label}</label>
+      <label className="text-sm font-bold text-[var(--brand-text)]">{label}</label>
       {children}
     </div>
   );
@@ -180,11 +199,11 @@ function SocialButton({ label, color, initial }: { label: string; color: string;
       type="button"
       disabled
       title="Coming soon"
-      className="w-full flex items-center justify-center gap-3 py-4 rounded-xl border border-[#E2DDD5]
-                 bg-[#F2EFEA] text-[#111827] font-semibold hover:bg-[#F9F9F9] transition-colors
+      className="w-full flex items-center justify-center gap-3 py-4 rounded-xl border-2 border-[var(--brand-control-border)]
+                 bg-[var(--brand-bg)] text-[var(--brand-text)] font-semibold hover:bg-[var(--brand-surface)] transition-colors
                  disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[#F2EFEA] text-sm font-bold"
+      <span className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--brand-on-green)] text-sm font-bold"
         style={{ backgroundColor: color }}>
         {initial}
       </span>

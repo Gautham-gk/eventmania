@@ -155,7 +155,13 @@ def search_events(
     if category:
         query = query.filter(Event.category == category)
     if event_type:
-        query = query.filter(Event.event_type == event_type)
+        # A Hybrid event is attendable both in person and online, so it matches
+        # BOTH an "Online" and an "In-Person" filter — an exact == would drop it
+        # from every list. Asking for Hybrid explicitly still means only Hybrid.
+        if event_type.lower() in ("online", "in-person"):
+            query = query.filter(Event.event_type.in_([event_type, "Hybrid"]))
+        else:
+            query = query.filter(Event.event_type == event_type)
     if date_from:
         query = query.filter(Event.start_date >= date_from)
     if date_to:

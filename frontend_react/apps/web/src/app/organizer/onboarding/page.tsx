@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { organizerApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { GUTTERS } from "@/lib/layout";
 
-const GREEN = "#184E4A";
+const GREEN = "var(--brand-green)";
 
 const COUNTRIES: { code: string; name: string; regLabel: string; regPlaceholder: string }[] = [
   { code: "BE", name: "Belgium",         regLabel: "BE-VAT Number",                    regPlaceholder: "BE0123456789" },
@@ -104,32 +105,34 @@ export default function OrganizerOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="px-12 py-10 max-w-2xl mx-auto">
+      <div className={`py-10 max-w-2xl mx-auto ${GUTTERS}`}>
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
-            style={{ backgroundColor: "#E8F0EF", color: GREEN }}>
+            style={{ backgroundColor: "var(--brand-surface)", color: GREEN }}>
             One-time setup
           </div>
-          <h1 className="text-[30px] font-bold mb-2" style={{ color: "#111827" }}>
+          <h1 className="text-[30px] font-bold mb-2" style={{ color: "var(--brand-text)" }}>
             Verify your organisation
           </h1>
-          <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+          <p className="text-[18px] leading-relaxed" style={{ color: "var(--brand-hint)" }}>
             To publish events on EventMind, we need your company details for trust and compliance.
             This is a one-time step. Your information is kept private.
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* Trust strip: three across from sm up, stacked on a phone where a third
+            of the column truncates "All countries supported". */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           {[
             { icon: "🔒", text: "Data kept private" },
             { icon: "✅", text: "Instant verification" },
             { icon: "🌍", text: "All countries supported" },
           ].map((item) => (
             <div key={item.text} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium"
-              style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5", color: "#6B7280" }}>
+              style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)", color: "var(--brand-hint)" }}>
               <span>{item.icon}</span>
               <span>{item.text}</span>
             </div>
@@ -137,11 +140,11 @@ export default function OrganizerOnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="rounded-2xl p-8 space-y-6" style={{ backgroundColor: "#F2EFEA", border: "1px solid #E2DDD5" }}>
+          <div className="rounded-2xl p-8 space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
 
             {/* Contact Person */}
             <div>
-              <h2 className="text-[15px] font-bold mb-4" style={{ color: "#111827" }}>Contact Person</h2>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--brand-text)" }}>Contact Person</h2>
               <FormField label="Full Name" error={fieldErrors.fullName}>
                 <input
                   type="text"
@@ -153,11 +156,11 @@ export default function OrganizerOnboardingPage() {
               </FormField>
             </div>
 
-            <div className="border-t" style={{ borderColor: "#E2DDD5" }} />
+            <div className="border-t" style={{ borderColor: "var(--brand-border)" }} />
 
             {/* Company Details */}
             <div className="space-y-6">
-              <h2 className="text-[15px] font-bold" style={{ color: "#111827" }}>Company Details</h2>
+              <h2 className="text-[15px] font-bold" style={{ color: "var(--brand-text)" }}>Company Details</h2>
 
               <FormField label="Company Name" error={fieldErrors.companyName}>
                 <input
@@ -179,7 +182,7 @@ export default function OrganizerOnboardingPage() {
                 />
               </FormField>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <FormField label="Company Email" error={fieldErrors.companyEmail}>
                   <input
                     type="email"
@@ -201,7 +204,7 @@ export default function OrganizerOnboardingPage() {
                 </FormField>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <FormField label="Country of Registration" error={fieldErrors.country}>
                   <select
                     value={country}
@@ -227,7 +230,7 @@ export default function OrganizerOnboardingPage() {
             </div>
           </div>
 
-          <p className="text-xs mt-4 leading-relaxed" style={{ color: "#9CA3AF" }}>
+          <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--brand-hint)" }}>
             By submitting, you confirm that the information provided is accurate and belongs to a legally
             registered entity. EventMind reserves the right to suspend accounts where false information is provided.
           </p>
@@ -238,7 +241,7 @@ export default function OrganizerOnboardingPage() {
 
           {success && (
             <div className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl mt-4"
-              style={{ color: GREEN, backgroundColor: "#F0F7F6" }}>
+              style={{ color: GREEN, backgroundColor: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
@@ -249,12 +252,12 @@ export default function OrganizerOnboardingPage() {
           <button
             type="submit"
             disabled={isSubmitting || success}
-            className="w-full mt-6 py-4 rounded-2xl text-[#F2EFEA] text-sm font-bold transition-colors disabled:opacity-50"
+            className="w-full mt-6 py-4 rounded-2xl text-[var(--brand-on-green)] text-sm font-bold transition-colors disabled:opacity-50"
             style={{ backgroundColor: GREEN }}
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-white" />
+                <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--brand-on-green)]" />
                 Verifying…
               </span>
             ) : "Verify & Continue"}
@@ -279,8 +282,8 @@ function FormField({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label className="text-sm font-semibold" style={{ color: "#111827" }}>{label}</label>
-        {hint && <span className="text-xs" style={{ color: "#9CA3AF" }}>{hint}</span>}
+        <label className="text-sm font-semibold" style={{ color: "var(--brand-text)" }}>{label}</label>
+        {hint && <span className="text-xs" style={{ color: "var(--brand-hint)" }}>{hint}</span>}
       </div>
       {children}
       {error && <p className="text-xs" style={{ color: "#EF4444" }}>{error}</p>}
@@ -291,9 +294,9 @@ function FormField({
 function inputCls(hasError: boolean): string {
   return (
     "w-full px-4 py-3 rounded-xl text-sm transition-colors " +
-    "placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 " +
+    "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 " +
     (hasError
       ? "border border-red-400 bg-red-50 focus:ring-red-200"
-      : "border border-[#E2DDD5] bg-[#F2EFEA] text-[#111827] focus:ring-[#184E4A]/20 focus:border-[#184E4A]")
+      : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")
   );
 }

@@ -78,7 +78,7 @@ EVENT DETAILS:
 - Language: {language}
 - Date: {event.start_date.strftime('%A, %B %d %Y at %H:%M')} — {event.end_date.strftime('%H:%M')}
 - Location: {address}
-- Price: {"Free" if float(event.price) == 0 else f"${float(event.price):.2f}"}
+- Price: {"Free" if float(event.price) == 0 else f"{float(event.price):.2f} {getattr(event, 'currency', None) or 'INR'}"}
 - Capacity: {event.capacity} attendees
 - Target audience: {target_audience or "General public"}
 - Tags: {", ".join(tags) if tags else "N/A"}
