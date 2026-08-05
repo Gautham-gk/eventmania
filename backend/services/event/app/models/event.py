@@ -46,6 +46,11 @@ class Event(Base):
     capacity = Column(Integer, default=0)
     tickets_sold = Column(Integer, default=0)
     price = Column(DECIMAL(12, 2), default=0.00)
+    # ISO 4217 code the organiser prices in. Defaults to INR — the platform's
+    # home currency — so pre-existing rows and any client that omits it read as
+    # rupees. Ticketmaster-synced events set this to their real provider
+    # currency (usually USD); never assume price is INR without reading this.
+    currency = Column(String(3), default="INR", nullable=False)
 
     status = Column(Enum(EventStatus), default=EventStatus.DRAFT)
 

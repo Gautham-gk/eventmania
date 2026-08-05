@@ -20,6 +20,7 @@ class EventCreate(BaseModel):
     end_date: datetime
     capacity: int = 0
     price: float = 0.0
+    currency: str = Field("INR", min_length=3, max_length=3)
     status: Optional[EventStatus] = EventStatus.DRAFT
 
 
@@ -55,6 +56,7 @@ class EventOut(BaseModel):
     capacity: int
     tickets_sold: int
     price: float
+    currency: str = "INR"
     status: EventStatus
     content_generated: Dict[str, Any]
     moderation_score: float
@@ -79,6 +81,7 @@ class EventUpdate(BaseModel):
     end_date: Optional[datetime] = None
     capacity: Optional[int] = None
     price: Optional[float] = None
+    currency: Optional[str] = Field(None, min_length=3, max_length=3)
     status: Optional[EventStatus] = None
 
 class EventSearch(BaseModel):

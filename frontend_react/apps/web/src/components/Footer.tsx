@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand";
 
 const GREEN = "#184E4A";
 const LINEN = "#F2EFEA";
@@ -44,17 +45,9 @@ export function Footer() {
     <footer style={{ backgroundColor: GREEN, color: LINEN }}>
       <div className="px-4 sm:px-6 lg:px-12 py-12">
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between">
-          {/* Brand */}
+          {/* Brand — footer is a fixed deep-green block, so the logo stays linen. */}
           <div className="max-w-sm">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-base font-bold"
-                style={{ backgroundColor: LINEN, color: GREEN }}
-              >
-                E
-              </div>
-              <span className="text-[19px] font-extrabold tracking-[0.2px]">NewFind</span>
-            </div>
+            <BrandLogo markSize={55} gap={16} style={{ color: LINEN }} />
             <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "rgba(242,239,234,0.75)" }}>
               AI-powered event discovery — find events, communities, and experiences near you.
             </p>

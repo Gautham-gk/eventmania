@@ -1,8 +1,14 @@
 "use client";
 
 import type { Event } from "@eventmind/types";
+import { BRAND } from "@/lib/theme";
+import { formatPrice } from "@/lib/currency";
+import { ShareButton } from "./ShareButton";
+import { CalendarIcon as SharedCalendarIcon, LocationPinIcon as SharedLocationPinIcon } from "./EventIcons";
 
-const GREEN = "#184E4A";
+const GREEN = BRAND.green;
+const SURFACE = BRAND.surface;
+const ON_GREEN = BRAND.onGreen;
 // Use event ID as seed so each card gets a unique but consistent placeholder image
 function cardImg(id: string) {
   return `https://picsum.photos/seed/${id}/400/300`;
@@ -33,8 +39,11 @@ export function EventCard({ event, onTap }: Props) {
   return (
     <div
       onClick={onTap}
-      className="group bg-white rounded-2xl overflow-hidden cursor-pointer flex flex-col"
-      style={{ border: "1px solid #E2E8F0" }}
+      // data-keep-type: opts this card out of the global 15px font-size floor so
+      // its intentional 11/12/14px type is preserved exactly. Do not remove.
+      data-keep-type
+      className="group bg-[var(--brand-surface)] rounded-2xl overflow-hidden cursor-pointer flex flex-col"
+      style={{ border: "1px solid var(--brand-border)" }}
     >
       {/* Image */}
       <div className="relative w-full" style={{ height: 180 }}>
@@ -44,15 +53,22 @@ export function EventCard({ event, onTap }: Props) {
           alt={event.title}
           className="w-full h-full object-cover"
         />
+        {/* Share button (does not trigger the card's navigation) */}
+        <ShareButton
+          event={event}
+          stopPropagation
+          iconClassName="w-4 h-4"
+          className="absolute top-3 left-3 w-8 h-8 shadow-sm bg-[var(--brand-surface)] text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)]"
+        />
         {/* Price badge */}
         <div
           className="absolute top-3 right-3 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm"
           style={{
-            backgroundColor: isFree ? GREEN : "white",
-            color: isFree ? "white" : GREEN,
+            backgroundColor: isFree ? GREEN : SURFACE,
+            color: isFree ? ON_GREEN : GREEN,
           }}
         >
-          {isFree ? "FREE" : `$${event.price.toFixed(0)}`}
+          {formatPrice(event.price, event.currency)}
         </div>
       </div>
 
@@ -66,17 +82,17 @@ export function EventCard({ event, onTap }: Props) {
         </span>
 
         <h3
-          className="text-[16px] font-bold leading-snug text-[#0A0F1A] line-clamp-2"
+          className="text-[16px] font-bold leading-snug text-[var(--brand-text)] line-clamp-2"
         >
           {event.title}
         </h3>
 
-        <div className="flex items-center gap-1.5 text-[12px] text-[#64748B]">
+        <div className="flex items-center gap-1.5 text-[12px] text-[var(--brand-hint)]">
           <CalendarIcon />
           <span>{formatDate(event.start_date)} · {formatTime(event.start_date)}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[12px] text-[#64748B]">
+        <div className="flex items-center gap-1.5 text-[12px] text-[var(--brand-hint)]">
           <LocationIcon />
           <span className="truncate">{location}</span>
         </div>
@@ -84,9 +100,9 @@ export function EventCard({ event, onTap }: Props) {
         {/* Price + CTA row */}
         <div className="flex items-center justify-between mt-2">
           <span className="text-[14px] font-bold" style={{ color: GREEN }}>
-            {isFree ? "Free Entry" : `$${event.price.toFixed(2)}`}
+            {isFree ? "Free Entry" : formatPrice(event.price, event.currency, { decimals: true })}
           </span>
-          <span className="flex items-center gap-1 text-[12px] font-medium text-[#94A3B8]">
+          <span className="flex items-center gap-1 text-[12px] font-medium text-[var(--brand-hint)]">
             Register <ArrowIcon />
           </span>
         </div>
@@ -95,24 +111,14 @@ export function EventCard({ event, onTap }: Props) {
   );
 }
 
+const ICON = "w-3 h-3 shrink-0 text-[var(--brand-hint)]";
+
 function CalendarIcon() {
-  return (
-    <svg className="w-3 h-3 shrink-0 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-    </svg>
-  );
+  return <SharedCalendarIcon className={ICON} />;
 }
 
 function LocationIcon() {
-  return (
-    <svg className="w-3 h-3 shrink-0 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-      <path strokeLinecap="round" strokeLinejoin="round"
-        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-    </svg>
-  );
+  return <SharedLocationPinIcon className={ICON} />;
 }
 
 function ArrowIcon() {
