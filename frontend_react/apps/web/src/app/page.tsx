@@ -1,16 +1,55 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { eventsApi } from "@eventmind/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { recommendationsApi } from "@eventmind/api";
+import { eventsSource, communitiesSource, isDummyMode } from "@/lib/data-source";
+import { useLocationStore, DEFAULT_CITY, isOnlineCity } from "@eventmind/store";
+import { EVENT_FORMATS, type Event } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
 import { HeroCarousel } from "@/components/HeroCarousel";
-import { EventCard } from "@/components/EventCard";
+import { EventsCarousel } from "@/components/EventsCarousel";
+import { CommunityCarousel } from "@/components/CommunityCarousel";
+import { CategoryGrid } from "@/components/CategoryGrid";
+import { CityPicker } from "@/components/CityPicker";
+import { Footer } from "@/components/Footer";
+import { toCarouselEvent, toCommunityItem } from "@/lib/card-adapters";
 
-const GREEN = "#184E4A";
+const RADIUS_KM = 100;
 
-// Wrapped in Suspense because useSearchParams requires it in Next.js App Router
+// A city ingest runs on the server for minutes (Ticketmaster is paginated per
+// classification segment), so the endpoint returns 202 straight away and we poll
+// for the events as they land rather than checking once.
+const INGEST_POLL_MS = 10_000;
+const INGEST_WINDOW_MS = 240_000;
+const INGESTED_KEY = "eventmind-ingested-cities"; // localStorage key
+
+function getIngestedCities(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(INGESTED_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markCityIngested(city: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const cities = getIngestedCities();
+    cities.add(city);
+    localStorage.setItem(INGESTED_KEY, JSON.stringify([...cities]));
+  } catch {}
+}
+
+// "View all" on the home carousels lands on the unified Explore page, scoped to the
+// selected city (matched by name on the Explore side) and the relevant view.
+function exploreHref(view: "events" | "communities", cityName: string): string {
+  return `/explore?view=${view}&city=${encodeURIComponent(cityName)}`;
+}
+
 export default function Home() {
   return (
     <Suspense>
@@ -24,71 +63,140 @@ function DiscoveryPage() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? undefined;
 
-  const { data: events, isLoading } = useQuery({
-    queryKey: ["events", q],
-    queryFn: () => eventsApi.search({ q }).then((r) => r.data),
+  const _selectedCity = useLocationStore((s) => s.selectedCity);
+  const hasHydrated = useLocationStore((s) => s._hasHydrated);
+  const selectedCity = hasHydrated ? _selectedCity : DEFAULT_CITY;
+
+  const queryClient = useQueryClient();
+  const inProgressRef = useRef<Set<string>>(new Set()); // prevent double-fire in same session
+
+  // event_type keeps the city row to events you can physically attend (In-Person
+  // + Hybrid). The geo radius alone is not enough: online events sit at lat/lng
+  // 0,0 in real mode, but dummy mode ignores geo entirely, so without this the
+  // online events would leak into the city row there.
+  const { data: events, isLoading: eventsLoading } = useQuery({
+    queryKey: ["events", q, selectedCity.name],
+    queryFn: () =>
+      eventsSource
+        .search({
+          q,
+          event_type: EVENT_FORMATS.inPerson,
+          lat: selectedCity.lat,
+          lng: selectedCity.lng,
+          radius: RADIUS_KM,
+        })
+        .then((r) => r.data),
   });
 
+  const { data: communities, isLoading: communitiesLoading } = useQuery({
+    queryKey: ["communities", q, selectedCity.name],
+    queryFn: () => communitiesSource.search({ q, city: selectedCity.name }).then((r) => r.data),
+  });
+
+  // Online events are location-independent (stored at lat/lng 0,0), so the city-radius
+  // query above filters them out. Fetch them separately so the "Online Events" row fills.
+  // Filtered by FORMAT, not category — these events carry their own real categories
+  // (Music, Technology, …), so the row shows a spread of category chips.
+  const { data: onlineEvents, isLoading: onlineLoading } = useQuery({
+    queryKey: ["events", "online", q],
+    queryFn: () =>
+      eventsSource.search({ q, event_type: EVENT_FORMATS.online, limit: 24 }).then((r) => r.data),
+  });
+
+  // Likewise online communities are city-independent — fetch separately so the
+  // "Online Communities" row fills regardless of the selected city.
+  const { data: onlineCommunities, isLoading: onlineCommLoading } = useQuery({
+    queryKey: ["communities", "online", q],
+    queryFn: () => communitiesSource.search({ q, category: "online" }).then((r) => r.data),
+  });
+
+  // Auto-ingest events for the selected city from Ticketmaster (once per city, ever).
+  useEffect(() => {
+    if (isDummyMode) return; // dummy mode serves local fixtures — never hit the ingestion backend
+    if (!hasHydrated || q) return;
+    if (isOnlineCity(selectedCity)) return; // "Online" is not a geographic city — nothing to ingest
+    if (inProgressRef.current.has(selectedCity.name)) return;
+    if (getIngestedCities().has(selectedCity.name)) return;
+
+    inProgressRef.current.add(selectedCity.name);
+
+    const { name: city, lat, lng } = selectedCity;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let elapsed = 0;
+
+    recommendationsApi
+      .ingestCity(city, lat, lng, RADIUS_KM)
+      .then(() => {
+        markCityIngested(city); // persist so we never re-ingest this city
+
+        // The call above only queues the ingest, so there is nothing to show yet.
+        // Re-check on an interval and let the grid fill as events are written.
+        timer = setInterval(async () => {
+          elapsed += INGEST_POLL_MS;
+          await queryClient.invalidateQueries({ queryKey: ["events", q, city] });
+
+          const fresh = queryClient.getQueryData<Event[]>(["events", q, city]);
+          if (fresh && fresh.length > 0) {
+            clearInterval(timer);
+            return;
+          }
+
+          // Nothing landed in the whole ingest window — fall back to AI generation.
+          if (elapsed >= INGEST_WINDOW_MS) {
+            clearInterval(timer);
+            await recommendationsApi.generateEventsForCity(city, lat, lng).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ["events", q, city] });
+          }
+        }, INGEST_POLL_MS);
+      })
+      .catch(() => inProgressRef.current.delete(city));
+
+    return () => clearInterval(timer);
+  }, [hasHydrated, selectedCity.name, q]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const carouselEvents = [
+    ...(events ?? []).map(toCarouselEvent),
+    ...(onlineEvents ?? []).map(toCarouselEvent),
+  ];
+  // Merge city communities with online communities, de-duping by id (an online
+  // community could also match the city query if it ever carries a city tag).
+  const seenCommunityIds = new Set<string>();
+  const carouselCommunities = [...(communities ?? []), ...(onlineCommunities ?? [])]
+    .filter((c) => {
+      const id = String(c.id);
+      if (seenCommunityIds.has(id)) return false;
+      seenCommunityIds.add(id);
+      return true;
+    })
+    .map(toCommunityItem);
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F2EFEA" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
       <HeroCarousel />
 
-      {/* ── Section header ── */}
-      <div className="flex items-end justify-between px-12 pt-8 pb-7">
-        <div>
-          <h2
-            className="font-extrabold tracking-[-0.5px]"
-            style={{ fontSize: 26, color: "#111827" }}
-          >
-            Upcoming Events
-          </h2>
-          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
-            Discover what&apos;s happening around you
-          </p>
-        </div>
-        <button
-          className="flex items-center gap-1 text-sm font-semibold"
-          style={{ color: GREEN }}
-        >
-          View All
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-          </svg>
-        </button>
-      </div>
+      <EventsCarousel
+        events={carouselEvents}
+        location={selectedCity.name}
+        seeAllHref={exploreHref("events", selectedCity.name)}
+        onlineSeeAllHref={exploreHref("events", "Online")}
+        isLoading={eventsLoading || onlineLoading}
+        onBookNow={(id) => router.push(`/event/${id}`)}
+        locationSlot={<CityPicker variant="icon" />}
+      />
 
-      {/* ── Event grid ── */}
-      <div className="px-12 pb-20">
-        {isLoading ? (
-          <div className="flex justify-center py-24">
-            <div
-              className="w-10 h-10 rounded-full border-4 border-t-transparent animate-spin"
-              style={{ borderColor: `${GREEN} transparent transparent transparent` }}
-            />
-          </div>
-        ) : !events || events.length === 0 ? (
-          <div className="flex flex-col items-center py-20 gap-4">
-            <svg className="w-12 h-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z" />
-            </svg>
-            <p className="text-[16px]" style={{ color: "#94A3B8" }}>
-              No events found. Try searching above.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onTap={() => router.push(`/event/${event.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <CommunityCarousel
+        communities={carouselCommunities}
+        location={selectedCity.name}
+        seeAllHref={exploreHref("communities", selectedCity.name)}
+        onlineSeeAllHref={exploreHref("communities", "Online")}
+        isLoading={communitiesLoading || onlineCommLoading}
+        locationSlot={<CityPicker variant="icon" />}
+      />
+
+      <CategoryGrid />
+
+      <Footer />
     </div>
   );
 }

@@ -31,6 +31,7 @@ app.add_middleware(
 SERVICE_MAP: Dict[str, str] = {
     "auth": "http://localhost:8001/auth",
     "user": "http://localhost:8002/users",
+    "community": "http://localhost:8002/users/communities",
     "event": "http://localhost:8003/events",
     "ticket": "http://localhost:8004/tickets",
     "ticketing": "http://localhost:8004/tickets",
@@ -39,6 +40,7 @@ SERVICE_MAP: Dict[str, str] = {
     "chat": "http://localhost:8007/chat",
     "recommendation": "http://localhost:8008/recommendations",
     "review": "http://localhost:8009/reviews",
+    "community": "http://localhost:8011/communities",
 }
 
 # Shared HTTP Client for Proxying
@@ -78,7 +80,7 @@ async def gateway_proxy(service_name: str, path: str, request: Request):
             params=params,
             content=body,
             headers=headers,
-            timeout=10.0
+            timeout=30.0
         )
         
         # Return matched response to the client
@@ -86,6 +88,16 @@ async def gateway_proxy(service_name: str, path: str, request: Request):
             content=response.content,
             status_code=response.status_code,
             headers=dict(response.headers)
+        )
+
+    # Must precede the RequestError handler below — TimeoutException is a subclass
+    # of RequestError, so catching only the base class reports a slow-but-healthy
+    # service as an unreachable one, which is what happened with /ingest-city.
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout proxying to {target_url}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"Internal service {service_name} timed out after 30s."
         )
 
     except httpx.RequestError as e:

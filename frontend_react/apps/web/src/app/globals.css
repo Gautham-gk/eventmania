@@ -1,26 +1,267 @@
 @import "tailwindcss";
 
+/* ── Brand tokens (theme-aware) ───────────────────────────────────────────────
+   The whole app references these CSS variables (via the `--brand-*` names, or
+   through the per-component `GREEN`/`LINEN`/… constants that now point here)
+   instead of hardcoded hexes, so flipping `data-theme` on <html> re-skins the
+   entire site. Light values live in `:root`; the dark override is one block
+   below. See src/lib/theme.ts for the JS-side string constants.
+
+   Token roles:
+     --brand-green       accent / CTA / active states / wordmark
+     --brand-on-green    text + icons that sit ON a green fill (button labels,
+                         hover foreground). Light in light mode; DARK in dark
+                         mode because the dark-mode green is a light mint.
+     --brand-bg          page background
+     --brand-surface     cards, navbar, dropdowns (== bg in light mode)
+     --brand-text        body text + headings
+     --brand-border      input/card borders, dividers
+     --brand-nav-border  navbar bottom border, event-card borders (stronger)
+     --brand-hint        secondary text + icons (labels, meta rows, empty states).
+                         NOT gray — it resolves to the brand text colour in light
+                         mode and the brand white (linen) in dark. Gautham's call:
+                         secondary copy reads at full contrast, hierarchy is
+                         carried by size/weight/position, not by washing it out.
+     --brand-muted       the one remaining genuinely-gray token. Two jobs only:
+                         (a) form placeholders, so an empty input still reads as
+                         empty rather than pre-filled, and (b) muted FILLS —
+                         disabled/sold-out button backgrounds, typing-indicator
+                         dots. Never use it for ordinary secondary text; that is
+                         --brand-hint's job now.
+     --brand-terracotta  fixed accent (category badge, event-assistant button).
+                         Same in both themes — it is an accent, not a surface.
+     --brand-on-terracotta  text/icons on a terracotta fill
+------------------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tells the browser which palette to paint NATIVE UI with — <select> popups,
+     scrollbars, focus rings. Without it a dark-theme <select> keeps a white OS
+     popup while our --brand-text goes near-white, i.e. invisible options. */
+  color-scheme: light;
+
+  --brand-green: #184E4A;
+  --brand-green-hover: #133D39; /* darker green for button :hover */
+  --brand-on-green: #F2EFEA;
+  /* Terracotta accent. Deliberately NOT themed (same hex in dark) — like the
+     badge reds/golds it is a semantic accent, not a themed surface. Defined
+     once here so the badge and the chat button can never drift apart. */
+  --brand-terracotta: #C1603F;
+  --brand-terracotta-hover: #A94F31;
+  --brand-on-terracotta: #FFFFFF;
+  --brand-bg: #F2EFEA;       /* linen */
+  --brand-surface: #F2EFEA;
+  --brand-text: #111827;
+  --brand-border: #E2DDD5;
+  --brand-nav-border: #C8C1B8;
+  /* Outline CONTROLS only — secondary buttons, filter chips/tabs, segmented
+     tracks, toggles, the /explore filter bar. Deliberately much darker than
+     --brand-border: because --brand-surface == --brand-bg in light mode, a
+     control's border is the ONLY thing separating it from the page, and the
+     pale tokens do not do that job. Measured against linen #F2EFEA:
+     --brand-border 1.24:1, --brand-nav-border 1.55:1, this 3.34:1.
+     Gautham picked this value off a side-by-side against brand black (15.8:1),
+     which read too heavy at 2px. NOT for cards, dividers or text inputs —
+     those keep --brand-border. */
+  --brand-control-border: #8B8172;
+  --brand-hint: #111827;   /* == --brand-text; see the token note above */
+  --brand-muted: #9CA3AF;  /* placeholders + muted fills ONLY */
+  /* Logo/wordmark tint — follows the brand green in BOTH themes (green in light,
+     the lighter dark-mode green in dark so it stays readable on the dark ground).
+     Defined via var() so it resolves per-theme automatically. */
+  --brand-logo: var(--brand-green);
+
+  /* legacy aliases — body + Tailwind color-* tokens */
+  --background: var(--brand-bg);
+  --foreground: var(--brand-text);
+}
+
+/* ── Dark theme — "warm green-black" ──────────────────────────────────────────
+   ONE place. Every dark value the site uses lives in this block. To switch the
+   whole app to a NEUTRAL DARK-GRAY look instead, comment out the seven values
+   here and uncomment the ".dark-gray alternate" block right below — that is the
+   entire swap, no component edits needed. */
+:root[data-theme="dark"] {
+  color-scheme: dark; /* see the note in :root — repaints native <select> popups */
+
+  --brand-green: #2F8A80;   /* vivid teal-green CTA — dark enough that linen text reads on it */
+  --brand-green-hover: #267269; /* darker teal for button :hover */
+  --brand-on-green: #F2EFEA; /* linen text/icons on the green fill (white shade, like light mode) */
+  --brand-bg: #0F1A18;       /* deep warm green-black */
+  --brand-surface: #16211F;  /* cards/navbar lifted slightly off the bg */
+  --brand-text: #ECEAE4;     /* warm off-white */
+  --brand-border: #2A3A38;
+  --brand-nav-border: #33433F;
+  /* Dark needs no lift: --brand-surface (#16211F) already sits off --brand-bg
+     (#0F1A18), so controls read as controls without a heavy outline. Left at
+     the nav-border value on purpose — the blending problem is light-only. */
+  --brand-control-border: #33433F;
+  --brand-hint: #F2EFEA;   /* brand white (linen) — deliberately the linen, not
+                              --brand-text's #ECEAE4; Gautham asked for the brand
+                              white shade specifically. */
+  --brand-muted: #8B938F;  /* placeholders + muted fills ONLY */
+  /* --brand-logo inherits `var(--brand-green)` from :root, which resolves to the
+     dark-mode green (#2F8A80) here — a readable green on the dark ground. */
+
+  /* ── .dark-gray alternate (neutral, no green tint) — uncomment to swap ──
+  --brand-green: #2E7D77;
+  --brand-green-hover: #256B65;
+  --brand-on-green: #F2EFEA;
+  --brand-bg: #121416;
+  --brand-surface: #1B1E20;
+  --brand-text: #E8E6E2;
+  --brand-border: #2C3033;
+  --brand-nav-border: #383D40;
+  --brand-hint: #F2EFEA;
+  --brand-muted: #8A8F92;
+  ------------------------------------------------------------------------ */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Default sans font for the whole app. Defined once in layout.tsx as --font-app.
+     Any element using Tailwind's `font-sans` (or none) gets this. */
+  --font-sans: var(--font-app);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* The single default typeface. Components inherit this unless they opt out. */
+  font-family: var(--font-app), system-ui, Arial, sans-serif;
+  /* Smooth the flip between light and dark. */
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* ── Autofill styling ─────────────────────────────────────────────────────────
+   When the browser autofills a saved value it forces its own light background
+   via an internal box-shadow (which beats `background-color`) and its own text
+   colour. Both must be overridden or dark-mode inputs flash white on autofill.
+   The huge inset shadow repaints the field with our surface colour; the
+   text-fill-color restores our text colour; the long transition delay stops the
+   yellow autofill flash from ever showing. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--brand-bg) inset !important;
+  box-shadow: 0 0 0 1000px var(--brand-bg) inset !important;
+  -webkit-text-fill-color: var(--brand-text) !important;
+  caret-color: var(--brand-text);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Native <select> dropdowns ────────────────────────────────────────────────
+   The popup list is painted by the browser, not by the page, so it does not
+   inherit the <select>'s own themed background. `color-scheme: dark` on :root
+   handles an UNSTYLED select — but the moment the select carries an author
+   background-color (all of ours do, via --brand-bg), Chrome falls back to a
+   white popup canvas while still inheriting our text colour. In dark mode that
+   is near-white text on white: invisible. So paint the rows explicitly.
+   Applies to every <select> in the app (Explore's Sort by + city picker, the
+   filter panel, …) — do not re-solve this per component. */
+option,
+optgroup {
+  background-color: var(--brand-surface);
+  color: var(--brand-text);
+}
+
+/* ── Font-size floor ──────────────────────────────────────────────────────────
+   No text on the site renders below 15px. Any Tailwind class that would be
+   smaller — `text-xs` (12px), `text-sm` (14px), and arbitrary `text-[9px]`…
+   `text-[14px]` — is raised to the floor. Sizes already ≥15px are untouched.
+
+   Opt-out: elements marked `data-keep-type` (and their descendants) are exempt,
+   so components with deliberately small, hand-tuned type keep it. Currently used
+   by the event card (EventCard.tsx). The community/event carousels use no
+   sub-15px type, so they need no marker.
+
+   To change the minimum site-wide, edit the single value below. */
+:is(
+  .text-xs,
+  .text-sm,
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[11px\],
+  .text-\[12px\],
+  .text-\[13px\],
+  .text-\[14px\]
+):not([data-keep-type], [data-keep-type] *) {
+  font-size: 15px !important;
+}
+
+/* ── Full-bleed hero title (/event/[id], /community/[slug]) ───────────────────
+   On lg+ the title is one line and heroTitleSize() shrinks the font to fit it —
+   see lib/hero-title.ts. That trade stops working on a phone: a long title hits
+   the 20px floor and then clips to an ellipsis, so the user never sees the name
+   of the thing they opened. Below lg the title is allowed to WRAP instead, at a
+   comfortable size, capped at three lines so it can't push the tags off a short
+   hero. `!important` is required to beat the inline fontSize the components set
+   for the desktop case. */
+@media (max-width: 1023.98px) {
+  .hero-title {
+    font-size: clamp(26px, 6.5vw, 40px) !important;
+    white-space: normal !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    text-overflow: clip;
+  }
+}
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── NewFind "breathing aura" loader ──────────────────────────────────────────
+   Used by <BrandLoader/>. The mark breathes (subtle scale), a soft aura pulses
+   outward behind it, and the eyes blink on the exhale. One slow ~5s cycle so it
+   reads as a calm breath, not a spinner. Respects reduced-motion. */
+@keyframes nf-aura {
+  0%, 100% { transform: scale(0.8);  opacity: 0; }
+  45%      { transform: scale(1.35); opacity: 0.28; }
+}
+@keyframes nf-breathe {
+  0%, 100% { transform: scale(1); }
+  45%      { transform: scale(1.06); }
+}
+@keyframes nf-blink {
+  0%, 80%, 100% { transform: scaleY(1); }
+  86%, 90%      { transform: scaleY(0.08); }
+}
+.nf-aura    { animation: nf-aura 5s ease-in-out infinite; }
+.nf-breathe { animation: nf-breathe 5s ease-in-out infinite; transform-origin: center; }
+.nf-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nf-blink 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-aura, .nf-breathe, .nf-eye { animation: none !important; }
+  .nf-aura { opacity: 0.15; }
+}
+
+/* ── Selectable chip (filter chips, format toggles) ───────────────────────────
+   A chip eases its colours on every state change, squishes slightly while held,
+   and gives one small pop at the moment it BECOMES selected. The pop is a
+   keyframe rather than a transition because it has to overshoot and settle —
+   a transition can only travel to the end value, so it reads as a slide, not a
+   bounce. It fires on class change, i.e. exactly once per selection. */
+@keyframes nf-chip-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+.nf-chip {
+  transition: background-color 180ms ease-out, color 180ms ease-out,
+              border-color 180ms ease-out, transform 180ms ease-out;
+}
+.nf-chip:active        { transform: scale(0.95); }
+.nf-chip-selected      { animation: nf-chip-pop 260ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .nf-chip-selected { animation: none !important; }
+  .nf-chip:active   { transform: none; }
 }
