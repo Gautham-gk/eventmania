@@ -29,7 +29,7 @@ export default function ChatInboxPage() {
   const userId = subFromToken(tokens?.access_token ?? null);
 
   // Gate on hydration, not just isAuthenticated — otherwise a hard load
-  // redirects before zustand rehydrates the session (see CLAUDE.md #12).
+  // redirects before zustand rehydrates the session (see HANDOVER.md #12).
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) router.replace("/auth");
   }, [hasHydrated, isAuthenticated, router]);

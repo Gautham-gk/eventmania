@@ -40,7 +40,7 @@
 - **`CategoryGrid`'s scroll arrows moved to the page edge** (`left-0` / `right-0`). They had been offset by GUTTERS + 8px, which put them ~40px on top of the outermost tile; at `lg` and up they now fill the 48px gutter exactly, with zero overlap.
 - **`CategoryBadge` gained `size` and `trailing` props** instead of `CategoryGrid` forking the chip. `'sm'` renders byte-identically to before; `'lg'` is 20px, held to a measurement (the longest name clears by 19px with the arrow inline, but clipped by 5px when the arrow was a separate button sharing the row).
 - **`CategoryGrid`'s hover border is theme-aware.** The raw category accent is dark by design (it is contrast-checked as text on linen) and was invisible against the dark page background; `liftAccent()` raises L/S — never hue — for dark mode only. Using one value for both themes just mirrors the bug: lifted-on-linen bottoms out at 1.23:1.
-- **`CLAUDE.md` split into four files.** It had grown to 103 KB / ~26k tokens, read in full at the start of every session. History moved here, current state to `STATUS.md`, unbuilt work to `TODO.md`, deep design rationale to `DESIGN_NOTES.md`. `CLAUDE.md` now holds instructions only.
+- **`HANDOVER.md` split into four files.** It had grown to 103 KB / ~26k tokens, read in full at the start of every session. History moved here, current state to `STATUS.md`, unbuilt work to `TODO.md`, deep design rationale to `DESIGN_NOTES.md`. `HANDOVER.md` now holds instructions only.
 - **Fixed the `Eventmind_files/` path.** The layout diagram placed it inside `Event mind/`; it actually sits one level higher, beside it. Every pointer to the PRD, competitor analysis and React handover had been resolving to nothing.
 - **Removed six resolved "known inconsistencies"** that still carried their full original text, including a verbatim copy of the superseded `BADGE_CONFIG` hex values — a live risk of a session reading the old colours as current.
 
@@ -48,7 +48,7 @@
 
 ## Undated (predates this changelog)
 
-Entries below were reconstructed from the old `CLAUDE.md` when it was split. They are ordered
+Entries below were reconstructed from the old `HANDOVER.md` when it was split. They are ordered
 roughly newest-first within each area, but the dates were never recorded.
 
 ### Design system

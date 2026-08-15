@@ -12,7 +12,7 @@
 //  a label, and they differ ONLY in fill: a category chip is always linen with a
 //  dark accent label, a status tag is a solid colour from Gautham's palette with
 //  a linen label (a preview — see the CONTRAST note by BADGE_CONFIG). This
-//  mirrors a reference design Gautham supplied; see CLAUDE.md inconsistency #6,
+//  mirrors a reference design Gautham supplied; see HANDOVER.md inconsistency #6,
 //  which records the shapes merging. Do not re-split them, do not round to pills.
 //
 //  Adding a tag? Add it to BADGE_CONFIG here AND emit it from toCarouselEvent —
@@ -109,7 +109,7 @@ const TAG = `${TAG_SHAPE} gap-1.5 font-bold leading-5`
 // unavailable, and a palette hue would make it compete with the live tags.
 //
 // 'today' and 'this-week' reuse the clock and calendar the cards already use
-// rather than getting a second drawing of the same concept (CLAUDE.md: one icon
+// rather than getting a second drawing of the same concept (HANDOVER.md: one icon
 // per concept).
 const TAG_LABEL = '#F2EFEA'
 

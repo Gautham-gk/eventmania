@@ -1,4 +1,4 @@
-# NewFind (EventMind) — Project Handover for Claude
+# NewFind — Project Handover
 
 > You are picking up an active project. Read this file fully before making any changes — it is
 > deliberately kept short enough that you can.
@@ -7,7 +7,7 @@
 >
 > | Writing | File |
 > |---|---|
-> | *How to work on this* — conventions, gotchas, rules still true tomorrow | **`CLAUDE.md`** (here) |
+> | *How to work on this* — conventions, gotchas, rules still true tomorrow | **`HANDOVER.md`** (here) |
 > | *What state things are in right now* — shipped / partial / not started / known-wrong | **`STATUS.md`** (rewritten in place) |
 > | *What meaningfully changed* — one short line per feature, decision, or revert | **`CHANGELOG.md`** (appended) |
 > | *Specs for what's left to build*, and what's blocked on a decision | **`TODO.md`** |
@@ -63,7 +63,7 @@ scratch/
 │   ├── competitor_analysis.md
 │   └── REACT_MIGRATION.md
 └── Event mind/
-    └── eventmind/              ← repo root (CLAUDE.md, STATUS.md, CHANGELOG.md, TODO.md, DESIGN_NOTES.md)
+    └── eventmind/              ← repo root (HANDOVER.md, STATUS.md, CHANGELOG.md, TODO.md, DESIGN_NOTES.md)
         ├── frontend_react/     ← Turborepo monorepo
         │   ├── apps/web/       ← Next.js 16, App Router, TypeScript, Tailwind v4
         │   └── packages/       ← types / store / api (shared, for the planned mobile app)
@@ -518,7 +518,7 @@ Standard patterns:
     ```powershell
     Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'next' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
     ```
-13. **Never attribute commits to Claude.** No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines, no AI attribution in commit messages or PR descriptions.
+13. **Never attribute commits to a tool.** No `Co-Authored-By:` trailers for AI assistants, no "Generated with…" lines, no tool attribution in commit messages or PR descriptions. **Biswajith and Gautham are the only contributors on this repo.**
 
 ---
 
@@ -534,7 +534,6 @@ This file is only worth its tokens if every line is still correct. Three rules, 
 > `Eventmind_files/eventmind_prd.md` and `Eventmind_files/REACT_MIGRATION.md` — including a
 > "read the PRD before building any new feature" instruction — while its own layout diagram put that
 > folder one level too deep. **Every one of those pointers resolved to nothing**, and had for a long
-> time. It also told sessions to *"add anything that would help the next Claude instance"*, which is
+> time. It also told sessions to *"add anything that would help the next session"*, which is
 > how the file reached 103 KB and ~26k tokens per session. Both corrected 2026-08-10.
 
-"Codex will review your output/code once finish"

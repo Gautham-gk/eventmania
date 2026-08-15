@@ -80,7 +80,7 @@ whatever the seed script wrote.
 1. **`community_members` table** — `community_id`, `user_id`, `joined_at`; unique on
    `(community_id, user_id)` so a double-click can't join twice. New model beside
    `models/community.py`.
-   > ⚠️ Mind the startup-order trap in `CLAUDE.md`: the community service must still create the
+   > ⚠️ Mind the startup-order trap in `HANDOVER.md`: the community service must still create the
    > `communities` table before the user service does. Adding a second table here doesn't change
    > that, but adding a *relationship* to `communities` could.
 2. **Endpoints** — `POST /community/{id}/members` (join), `DELETE /community/{id}/members` (leave),

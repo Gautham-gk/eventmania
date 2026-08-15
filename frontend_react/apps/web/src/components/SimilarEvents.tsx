@@ -17,7 +17,7 @@ const MAX_CARDS = 12;
 
 /**
  * Coordinates of the event being viewed. Ticketmaster rows that failed geocoding
- * are stored at 0,0 (see CLAUDE.md), which is a real point in the Atlantic — a
+ * are stored at 0,0 (see HANDOVER.md), which is a real point in the Atlantic — a
  * radius search around it returns nothing useful, so treat it as "no coords".
  */
 function eventCoords(event: Event): { lat: number; lng: number } | null {

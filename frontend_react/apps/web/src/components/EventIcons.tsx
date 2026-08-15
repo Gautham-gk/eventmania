@@ -4,7 +4,7 @@
 //  A calendar means the same glyph on a card, on /event/[id], and in the
 //  dashboard. Before this file the app drew each concept three different ways
 //  (filled on the cards, thin outline heroicons on the detail page, 12px
-//  outlines on EventCard) — see CLAUDE.md "Known design inconsistencies" #1.
+//  outlines on EventCard) — see HANDOVER.md "Known design inconsistencies" #1.
 //
 //  Two sections:
 //    1. Date / time / location / verification — the card + booking-card glyphs.
