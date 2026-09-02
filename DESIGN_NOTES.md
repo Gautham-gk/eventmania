@@ -26,6 +26,8 @@
 | **`--brand-hint` is not gray and must not be "restored"** | Every gray secondary label on the site read as washed out. The name survives only to avoid touching 127 call sites. |
 | **Outline controls use `--brand-control-border`, not `--brand-nav-border`** | An intermediate 2px `--brand-nav-border` pass shipped and still read as blending — at 1.55:1 it was only making an invisible thing thicker. |
 | **`CategoryGrid` has 11 tiles, leaving a hole in the 6th column** | Filling it means a 12th category, and Gautham explicitly chose the 11 Explore categories over adding Music. |
+| **`FeatureBand` is NOT centred** (and, since 2026-08-19, not capped either) | Three layouts were built and dropped before this one. **Full-bleed** (cards to the gutters, like every other home section) — "it doesn't need to be stretched the entire width". **Everything centred** (the reference mockup's look) and **only the card grid narrowed** while the heading kept the gutters — both offered, both turned down. The fourth, **centred block with left-aligned contents**, shipped briefly and was then dropped too: it was the only home section not sharing a left edge with its neighbours, and Gautham's answer was "left align the whole thing". So the cap now only stops the cards stretching — the band starts at the gutter and the spare room falls on the right, which keeps the heading on the same left line as `EventsCarousel` and `CategoryGrid`. 960 was picked over 1100 and 1280; at three-up it put a card near 305px, close to an event card on the same page. ⚠️ **Amended 2026-08-19 — the cap is GONE and the full-width answer above is REVERSED.** The band no longer shows three cards at a time: both audiences are on screen at once, which is **seven tiles on one line**, and Gautham asked for them to "take up the entire width of the website". It went 960 → 1400 → no cap at all in one session, so `BAND_MAX_WIDTH` no longer exists and the band carries only `GUTTERS`, like `EventsCarousel` and `CategoryGrid`. **"It doesn't need to be stretched the entire width" applied to three cards and does not apply to seven — do not re-cap it on the strength of that line.** What still stands is everything about *centring*: the band starts at the gutter, nothing is `margin: 0 auto`, and the text is left-aligned, so the shared left line is intact. |
+| **`FeatureBand` shows both audiences at once, with no switch** | The **For Participants / For Organisers** `RailToggle` shipped 2026-08-17 and was dropped on 2026-08-19: a visitor only ever saw half the pitch, and which half depended on a default. Participants now sit left and organisers right, each tile labelled with a coloured dot, and **each half ends in a CTA tile** — which also retired the outline **Explore events / Publish an event** button pair that used to sit under the grid. Do not re-propose the toggle, and do not move the CTAs back below the grid. |
 
 ---
 
@@ -201,13 +203,13 @@ label overlaid on it.
 
 - **The tile has NO colour wash.** The photo shows at its own colours, exactly as on an event card. An earlier version washed it in the category's accent at 62% opacity — Gautham's call was that it read as a coloured block, not a photo. **Never hardcode a tile colour here.**
 - **There is no body.** It was removed at Gautham's request ("no white space below the photo"), taking the **Explore** button with it. **Do not put a body back.**
-- **The label is the shared `CategoryBadge` at `size="lg"`** — the same linen chip an event card overlays on its photo, scaled up (20px label, 24px glyph). Both `size` and `trailing` are **props, not forks**: they were added to `CategoryBadge` rather than hand-rolling a second category chip here.
+- **The label is the shared `CategoryBadge` at `size="lg"`** — the same linen chip an event card overlays on its photo, scaled up (18px label, 22px glyph). `size` is a **prop, not a fork**: it was added to `CategoryBadge` rather than hand-rolling a second category chip here.
 - **The chip sits bottom-RIGHT**, not bottom-left.
-- **The explore arrow sits INSIDE the chip, straight after the name** (via `trailing`), not apart at the tile's right edge. A standalone 44px button at the right edge was built and replaced — clubbed with the name, the arrow reads as part of the category rather than as a separate control.
-- **⚠️ The `lg` size is held to a measurement, not chosen by eye.** At the narrowest 4-across column (321px tile → 285px row) the longest name, "Health & Wellness", comes to **266px and clears by 19px**; every other category has 58px+ of slack. It was briefly 18px, when the arrow was a separate button sharing the row — that left only 229px and 20px clipped by 5px. **Clubbing the arrow into the chip is what bought the size back.** Re-measure from Roboto Bold's advance widths before enlarging either.
-- **The arrow is decoration, not a control** — `aria-hidden`, not focusable, no handler. This is the *same* reasoning that removed the Explore button: the whole tile is already a link to that destination, so a nested control would be a second tab stop performing one action and a second thing for a screen reader to announce. The affordance is visual only; AT gets it from the Link's `aria-label`. **Do not make it interactive.**
-- **The arrow takes `stroke="currentColor"`, so it is always the category accent the label is painted in** — the two cannot drift. It is drawn at `strokeWidth 3.25`, heavier than the 2 the "View all" links use, because it stands alone rather than beside text. **Two colour treatments were tried and dropped:** a green-filled square with a linen arrow (green is dark, and the square read as a blob over most photos), then a green arrow on the chip's linen (inside a chip whose label is already the category's colour, green read as a third colour).
-- **The arrow carries no tooltip.** One was built ("Click to explore this category") and removed as redundant — the arrow, the category name and the fact that the whole tile is a link all already say the same thing. **Don't re-add one.**
+- **⚠️ THE EXPLORE ARROW IS GONE (Gautham, 2026-08-21) — the chip is name-only.** It was `aria-hidden` decoration for something the tile already said: the whole tile is a link to that category, so the arrow was a third signal after the photo and the name. **Do not put it back without asking.** With it went the last live use of `ARROW_PATH`, now parked beside the header link's `GREEN` / `EXPLORE_ALL`. The `trailing` prop it rode in on stays on `CategoryBadge` — generic, currently uncalled.
+- **Three rounds of affordance all ended the same way, and all are closed.** A standalone 44px Explore **button** at the tile's right edge (removed with the body — and a nested control would be a second tab stop performing the tile's one action, plus a second thing for a screen reader to announce). Then the **arrow clubbed inside the chip** after the name (above). Then a **tooltip** on that arrow, "Click to explore this category" (redundant — the arrow, the name and the whole-tile link all said the same thing). **The standing lesson: the tile explains itself with a photo and a name.** Anything further has been tried and cut. AT gets the destination from the Link's `aria-label`, which is the only place it is needed.
+- **⚠️ The `lg` chip is 18px, ONE 0.9 SCALE off the 20px it shipped at** (Gautham, 2026-08-21: "reduce the font size by 2px, and reduce the button size accordingly maintaining the same proportions"). Six numbers moved together — 20→18 type, 24→22 leading, 24→22 glyph, 16→14 inline padding, 10→9 block padding, 8→7 gap, each within ~2% of ×0.9 and rounded to a whole pixel. **They are a set: re-scale all six or none. Nudging one value alone is what breaks the proportion the request was about.**
+- **⚠️ The size is held to a measurement, not chosen by eye.** At the narrowest 4-across column (321px tile → 285px row) the longest name, "Health & Wellness", came to **266px and cleared by only 19px** back at 20px *with the arrow still in the chip*; every other category had 58px+ of slack. Two things bought that back — the arrow went (~28px of glyph plus gap) and the chip scaled to 0.9 — putting the same name near **214px, roughly 71px of slack**. That is why 18px is safe *now*. ⚠️ **18px was tried and rejected once before**, when the arrow was a separate 44px button sharing the row: 229px, and 20px clipped by 5px. Different layout, same number — **do not read that history as a verdict on 18px itself.** Re-measure from Roboto Bold's advance widths before enlarging either, against a name-only row.
+- **Two arrow colour treatments were tried and dropped** before the arrow itself was — a green-filled square with a linen arrow (green is dark, and the square read as a blob over most photos), then a green arrow on the chip's linen (inside a chip whose label is already the category's colour, green read as a third colour). Recorded because they rule out the obvious "just recolour it" restorations, not only the arrow's presence.
 - **No scrim.** An intermediate version put bare 20px text on a black bottom gradient so it would read over an arbitrary photo. The chip carries its own linen fill, so the gradient became unnecessary and was removed — which is what leaves the photo completely untouched.
 - **Glyph and label take the RAW accent; the hover border does not.** The accents in `EventBadges.tsx` are contrast-checked as text *on linen*, so inside the chip the raw value is correct. The border is the exception — it draws between the photo inside it and the **page** outside it, and in dark mode that page is `#0F1A18`, so a raw (dark) accent had dark on both sides and **read as no border at all**. `liftAccent()` in `CategoryGrid.tsx` raises L to 62% and floors S at 60%, **hue untouched**, for the dark-mode border only. Measured against the dark page: **4.0–12.6:1**. Light mode keeps the raw accent (dark on linen). **Do not collapse this to one value for both themes** — lifted-on-linen bottoms out at **1.23:1** (Networking), which is the same invisible-border bug mirrored.
 - Scroll arrows sit **on the seam between the two rows, hard against the page edge**, not in the header where `SimilarEvents` keeps its own. `left-0` / `right-0` means the *browser* edge, because an absolutely positioned child resolves against its ancestor's **padding box** and the rail's ancestor carries GUTTERS. **The fit is exact at `lg` and up:** the gutter is 48px (`px-12`) and the `lg` button is 48px, so the arrow fills the gutter — outer edge on the browser edge, inner edge on the tile's edge, **zero overlap**. Below `lg` the gutter is only 16/24px, so a 48px button cannot clear the tiles however far out it goes; it is simply as far out as it can be. An earlier version added the gutter back by hand (GUTTERS + 8px: 24 / 32 / 56) and **that is what put the buttons ~40px on top of the outermost tile**. **If the button size or GUTTERS changes, re-check that exact fit.**
@@ -520,3 +522,74 @@ sink via `soldOutLast`.
 
 **It is not a Category chip.** Category is single-select, so filing it there would make "Music" and
 "selling fast" mutually exclusive — the same axis-confusion as the online-is-a-format rule.
+
+---
+
+## 11. The console/public coherence pass (2026-08-22)
+
+**The problem, stated precisely.** The organiser console read as a different product from the rest
+of NewFind while sharing every colour with it. It was *token*-coherent and *signature*-incoherent:
+`ConsoleUI.tsx` re-derived every shape, scale and behaviour from scratch instead of skinning the
+public primitives.
+
+**The distinction the fix rests on — SIGNATURE vs REGISTER.** A console is legitimately denser than
+a landing page: tables instead of cards, tighter gaps, outline nav icons. That is *register*, and it
+may differ. What must not differ is *signature* — the four carriers below. The goal was "same
+designer, quieter room", never "home page with tables".
+
+| Carrier | Public surfaces | Console, before | Console, now |
+|---|---|---|---|
+| Type scale | card title 20px, meta 18px, headings `clamp(18px,4vw,30px)` extrabold `-0.5px` | everything 15–16px, `h1` 28px `font-bold` `-0.01em`, 11px uppercase labels | row titles 20px, body 17px, figures 32px extrabold, headings on the public recipe |
+| Motion | card lifts, borders green, chips pop | nothing hovered, anywhere | rows wash 8% green, controls take the green-fill rule, buttons cross-fade on `transition-colors` |
+| Photography | every card, both heroes, every category tile | not one image | every table row, and the dashboard hero |
+| Chip idiom | `EventBadge`, 16px bold sentence case | 11px uppercase `tracking-[0.1em]` | `EventBadge`'s recipe exactly |
+
+**Why the type scale mattered most.** The console held 24 of the app's 29 `data-keep-type` opt-outs —
+i.e. it was the *only* region of the app that broke the site's own 15px floor, and it broke it
+everywhere. Uppercase-tracked-11px is generic SaaS-admin vocabulary; it appears nowhere else in
+NewFind. Sitting the console on the public scale removed every one of those markers.
+
+**Why `Tabs` became the home page's filter tab, literally.** It is the control an organiser touches
+most, so it is the one most worth having be the same object rather than a near-miss: `rounded-xl`,
+20px semibold, 2px border on both states, **solid** green fill when picked. The old 12% green tint
+with a green label existed nowhere else in the app. This also activated `CountBadge`'s dormant
+`active` prop — terracotta on solid green is ~2.4:1, so an active tab's count takes linen, which is
+the console-wide count rule doing exactly what it was written for.
+
+**Why a row washes rather than fills.** The app-wide hover is a solid green ground with linen copy.
+A table row carries status pills and a progress bar, which a solid fill would swallow, so a row
+takes the 8% tint the rooms list already used for its picked room. The tint is the concession; the
+thing worth fixing was that lists built to be scanned and clicked had *no* hover at all.
+
+**Why the press squish came back off (Gautham, 2026-09-01).** The motion row above originally landed
+`transition-all duration-150 active:scale-[0.98]` on `ConsoleButton`, copied from the event card's
+"View details" CTA on the reasoning that the console's buttons had no press feedback at all. That
+overshot: the *reference button* for a labelled action is `/event/[id]`'s — `DetailCTA`,
+`DetailStickyBar` and every organiser modal's pair — and all of them only cross-fade their colours.
+So the console became the one place in the app where a button squished under the thumb, which is
+what "different animations from the rest of the site" meant. `ConsoleButton` renders on
+`/event/[id]` too (the `EventSections` edit control), inches from a `DetailCTA`, so the two could
+not press differently. It is now `transition-colors`, full stop. **The `active:scale` still in the
+app belongs to controls of a different kind** — the round icon buttons (`EventActions`, 0.90) and
+the filter chips (`.nf-chip`, 0.95, shared with `/explore`) — and a labelled button is not one of
+those. The rest of the motion row stands: rows still wash, controls still take the green fill.
+
+**The bug underneath the missing hovers.** Every console colour was an inline `style`, and an inline
+colour beats a `hover:` rule — so those buttons could not have had a hover state even if one had
+been written. `ConsoleButton`'s tones are now class strings. This is the third time this trap has
+been recorded (FeatureBand's audience badge, `FilterSelect`'s menu items, now here).
+
+**Why the dashboard hero takes the photo at 24% and not full strength.** The public heroes put the
+photo at full strength under `HERO_SCRIM`, because they carry one huge title over the gradient's
+darkest end. The console panel carries a dozen small figures across its whole height, so the ink has
+to stay dominant or the numbers land on whatever the photograph happens to be doing behind them.
+
+**One-directional, on purpose.** Nothing on home, `/explore` or `/event/[id]` was restyled. The
+three public files touched were mechanical: `HERO_SCRIM` and the placeholder-image URL were lifted
+into shared helpers (both had been copy-pasted), and one new CSS class was added. Same values, same
+render.
+
+**The root cause, and the standing fix.** `ConsoleUI.tsx` forked instead of skinning, and there is
+still no shared Button component (CLAUDE.md records that this is why the 2px outline treatment had
+to be applied in ~20 places across 12 files). The type scale is now written down in CLAUDE.md so the
+next surface cannot quietly re-derive its own.

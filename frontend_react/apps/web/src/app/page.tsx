@@ -12,6 +12,7 @@ import { Navbar } from "@/components/navbar/Navbar";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { EventsCarousel } from "@/components/EventsCarousel";
 // PARKED 2026-08-14 (MVP) — import { CommunityCarousel } from "@/components/CommunityCarousel";
+import { FeatureBand } from "@/components/FeatureBand";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { CityPicker } from "@/components/CityPicker";
 import { Footer } from "@/components/Footer";
@@ -221,6 +222,8 @@ function DiscoveryPage() {
       />
 
       */}
+
+      <FeatureBand />
 
       <CategoryGrid />
 

@@ -11,6 +11,7 @@
 //  ⚠️ Do not fork this file for a third surface. Add a prop.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import Link from "next/link";
 import { TAG_SHAPE } from "./EventBadges";
 import { ShieldCheckIcon } from "./EventIcons";
 import { BRAND } from "@/lib/theme";
@@ -200,24 +201,97 @@ export function DetailPriceRow({
   );
 }
 
-/** The card's full-width primary action. */
+/**
+ * The card's full-width primary action.
+ *
+ * ⚠️ PASS `href` WHEN THE ACTION IS NAVIGATION (the organiser card's "Manage
+ * attendees" and "Manage revenue"), and it renders a `next/link` with the
+ * identical chrome. A `router.push` inside `onClick` would look the same and
+ * lose the three things a link gives for free: prefetch, middle-click, and a
+ * destination in the status bar. `onClick` stays for the actions that are NOT
+ * navigation — "Book Now" branches on whether you are signed in.
+ *
+ * `variant="outline"` is the quieter of the two: same size and radius, but it
+ * wears the SAME skin as the section edit controls in `EventSections` —
+ * `ConsoleButton`'s `outline` tone: surface ground, `--brand-text` label (brand
+ * black in light, warm off-white in dark) and a 2px `--brand-control-border`,
+ * hovering to the app-wide green ground + linen label (Gautham, 2026-08-31).
+ * It was a green outline with a green label, which made "Manage attendees" and
+ * "Post an announcement" — two equally-weighted controls on one screen — read
+ * as two different systems. **Do not restore the green label.**
+ *
+ * Use it for the secondary of a mixed pair, or for BOTH when neither action
+ * outranks the other (`OrganiserEventCard`), and on the participant card's
+ * "Book Now" so the one CTA a reader sees matches the rest of the page.
+ * The outline keeps its 2px border through the hover, so it never resizes.
+ */
 export function DetailCTA({
   label,
   onClick,
+  href,
   disabled = false,
+  variant = "solid",
 }: {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** Internal route. Wins over `onClick` when both are somehow passed. */
+  href?: string;
   disabled?: boolean;
+  variant?: "solid" | "outline";
 }) {
+  const solid = variant === "solid";
+  // ⚠️ `py-[14px]` on the outline, not `py-4`. Its 2px border is inside the box,
+  // so 14 + 2 lands on exactly the solid button's 16px — the two are the same
+  // height when stacked, and the solid one is byte-identical to what "Book Now"
+  // has always rendered. Change one of these numbers and change the other.
+  const cls = `block w-full mt-5 ${
+    solid ? "py-4" : "py-[14px]"
+  } rounded-2xl text-[18px] font-bold text-center transition-colors disabled:opacity-60 disabled:cursor-not-allowed`;
+  // Inline, and hovered from JS, because that is what this file already does for
+  // the sticky bar below — one pattern per file beats a correct second one.
+  const rest = solid
+    ? { backgroundColor: GREEN, color: "var(--brand-on-green)" }
+    : {
+        backgroundColor: "var(--brand-surface)",
+        color: "var(--brand-text)",
+        border: "2px solid var(--brand-control-border)",
+      };
+  // ⚠️ The outline swaps its BORDER too. `ConsoleButton`'s outline tone goes
+  // green-on-green on hover; leaving this one on the control border would give
+  // the same control two different hovers on one page.
+  const enter = (el: HTMLElement) => {
+    el.style.backgroundColor = solid ? "var(--brand-green-hover)" : GREEN;
+    el.style.color = "var(--brand-on-green)";
+    if (!solid) el.style.borderColor = GREEN;
+  };
+  const leave = (el: HTMLElement) => {
+    el.style.backgroundColor = rest.backgroundColor;
+    el.style.color = rest.color;
+    if (!solid) el.style.borderColor = "var(--brand-control-border)";
+  };
+
+  if (href && !disabled) {
+    return (
+      <Link
+        href={href}
+        className={cls}
+        style={rest}
+        onMouseEnter={(e) => enter(e.currentTarget)}
+        onMouseLeave={(e) => leave(e.currentTarget)}
+      >
+        {label}
+      </Link>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full mt-5 py-4 rounded-2xl text-[18px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-      style={{ backgroundColor: GREEN }}
-      onMouseEnter={(e) => !disabled && (e.currentTarget.style.backgroundColor = "var(--brand-green-hover)")}
-      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GREEN)}
+      className={cls}
+      style={rest}
+      onMouseEnter={(e) => !disabled && enter(e.currentTarget)}
+      onMouseLeave={(e) => leave(e.currentTarget)}
     >
       {label}
     </button>
@@ -235,17 +309,22 @@ export function DetailStickyBar({
   amount,
   cta,
   onClick,
+  href,
   disabled = false,
   gutters,
 }: {
   caption: string;
   amount: string;
   cta: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** Internal route — see the note on `DetailCTA`. Wins over `onClick`. */
+  href?: string;
   disabled?: boolean;
   /** The page's GUTTERS class — passed in so this file needs no layout import. */
   gutters: string;
 }) {
+  const btnCls =
+    "inline-flex items-center px-6 sm:px-10 lg:px-16 py-4 rounded-2xl text-[18px] font-bold text-[var(--brand-on-green)] transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed";
   return (
     <div
       className={`fixed bottom-0 left-0 right-0 flex items-center justify-between gap-4 bg-[var(--brand-bg)] z-30 ${gutters}`}
@@ -257,16 +336,28 @@ export function DetailStickyBar({
         <p className="text-sm text-[var(--brand-hint)]">{caption}</p>
         <p className="text-[22px] sm:text-[28px] font-bold text-[var(--brand-text)]">{amount}</p>
       </div>
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className="px-6 sm:px-10 lg:px-16 py-4 rounded-2xl text-[18px] font-bold text-[var(--brand-on-green)] transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
-        style={{ backgroundColor: GREEN }}
-        onMouseEnter={(e) => !disabled && (e.currentTarget.style.backgroundColor = "var(--brand-green-hover)")}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GREEN)}
-      >
-        {cta}
-      </button>
+      {href && !disabled ? (
+        <Link
+          href={href}
+          className={btnCls}
+          style={{ backgroundColor: GREEN }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--brand-green-hover)")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GREEN)}
+        >
+          {cta}
+        </Link>
+      ) : (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={btnCls}
+          style={{ backgroundColor: GREEN }}
+          onMouseEnter={(e) => !disabled && (e.currentTarget.style.backgroundColor = "var(--brand-green-hover)")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = GREEN)}
+        >
+          {cta}
+        </button>
+      )}
     </div>
   );
 }

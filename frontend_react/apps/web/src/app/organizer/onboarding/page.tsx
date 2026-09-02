@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { organizerApi } from "@eventmind/api";
 import { useAuthStore } from "@eventmind/store";
 import { Navbar } from "@/components/navbar/Navbar";
+import { SKIP_ORGANIZER_VERIFICATION } from "@/lib/dev-flags";
 import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
@@ -56,6 +57,11 @@ export default function OrganizerOnboardingPage() {
 
   useEffect(() => {
     if (!isAuthenticated) { router.replace("/auth"); return; }
+    /* An organiser who is already verified normally gets bounced straight to the
+       create form. Under the dev bypass that redirect is exactly what stops you
+       from LOOKING at this page — and it would fire the moment the create page's
+       back button landed you here, so the pair would ping-pong. */
+    if (SKIP_ORGANIZER_VERIFICATION) return;
     const userId = subFromToken(tokens?.access_token ?? null);
     if (!userId) return;
     organizerApi.get(userId)
@@ -109,6 +115,34 @@ export default function OrganizerOnboardingPage() {
       <Navbar />
 
       <div className={`py-10 max-w-2xl mx-auto ${GUTTERS}`}>
+        {/* DEV ONLY — the forward half of the create ⇄ onboarding round trip.
+            Deliberately a strip ABOVE the page rather than a control inside it:
+            this page's own layout is what you came here to look at, and a button
+            threaded into the header would change the thing under review. The
+            dashed edge is the tell that it is not product UI. Dropped from the
+            bundle entirely when the flag is off — see lib/dev-flags.ts. */}
+        {SKIP_ORGANIZER_VERIFICATION && (
+          <div
+            className="mb-8 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3"
+            style={{
+              border: "2px dashed var(--brand-control-border)",
+              backgroundColor: "var(--brand-surface)",
+            }}
+          >
+            <p style={{ color: "var(--brand-hint)" }}>
+              Dev bypass on — verification is not being enforced.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/organizer/create")}
+              className="px-4 py-2 rounded-xl font-bold transition-colors bg-[var(--brand-green)] hover:bg-[var(--brand-green-hover)]"
+              style={{ color: "var(--brand-on-green)" }}
+            >
+              Skip to Create Event →
+            </button>
+          </div>
+        )}
+
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
             style={{ backgroundColor: "var(--brand-surface)", color: GREEN }}>
@@ -118,7 +152,7 @@ export default function OrganizerOnboardingPage() {
             Verify your organisation
           </h1>
           <p className="text-[18px] leading-relaxed" style={{ color: "var(--brand-hint)" }}>
-            To publish events on EventMind, we need your company details for trust and compliance.
+            To publish events on NewFind, we need your company details for trust and compliance.
             This is a one-time step. Your information is kept private.
           </p>
         </div>
@@ -232,7 +266,7 @@ export default function OrganizerOnboardingPage() {
 
           <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--brand-hint)" }}>
             By submitting, you confirm that the information provided is accurate and belongs to a legally
-            registered entity. EventMind reserves the right to suspend accounts where false information is provided.
+            registered entity. NewFind reserves the right to suspend accounts where false information is provided.
           </p>
 
           {error && (

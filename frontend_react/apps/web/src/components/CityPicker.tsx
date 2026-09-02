@@ -5,6 +5,7 @@ import { useLocationStore, CITIES, DEFAULT_CITY } from "@eventmind/store";
 import type { City } from "@eventmind/store";
 import { BRAND } from "@/lib/theme";
 import { LocationPinIcon } from "./EventIcons";
+import { EditPencil } from "./EditPencil";
 
 // Theme-aware tokens (resolve via CSS vars, see globals.css)
 const GREEN = BRAND.green;
@@ -82,31 +83,19 @@ export function CityPicker({ variant = "pill" }: { variant?: "pill" | "icon" | "
         // Pencil "edit location" trigger — relative wrapper is kept here for the tooltip only;
         // the dropdown uses the nearest positioned ancestor (EventsCarousel heading wrapper)
         // so it opens left-aligned to the city name text.
-        <span className="relative inline-flex items-center">
-          <button
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Edit location"
-            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer"
-            style={{ color: open ? GREEN : HINT }}
-            onMouseEnter={(e) => { if (!open) e.currentTarget.style.color = GREEN; }}
-            onMouseLeave={(e) => { if (!open) e.currentTarget.style.color = HINT; }}
-          >
-            <svg className="w-4 h-4" viewBox="0 -0.5 21 21" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd"
-                d="M0,20 L20.616532,20 L20.616532,18.042095 L0,18.042095 L0,20 Z M7.215786,13.147332 L7.215786,10.51395 L13.094591,5.344102 L15.146966,7.493882 L9.903151,13.147332 L7.215786,13.147332 Z M16.244797,2.64513 L18.059052,4.363191 L16.645788,5.787567 L14.756283,3.993147 L16.244797,2.64513 Z M21,4.64513 L16.132437,0 L5.154133,9.687714 L5.154133,15.105237 L10.78657,15.105237 L21,4.64513 Z"
-              />
-            </svg>
-          </button>
-          {/* Hover tooltip — relative to the button wrapper above */}
-          {hovered && !open && (
-            <span
-              className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-full shadow-lg z-50 pointer-events-none"
-              style={{ backgroundColor: SURFACE, color: GREEN, border: `1px solid ${BORDER}` }}
-            >
-              Click here to change your location
-            </span>
-          )}
-        </span>
+        // ⚠️ `EditPencil` IS this trigger, lifted out verbatim on 2026-09-02 so
+        // /event/[id]'s "edit the event details" pencil is the same object
+        // rather than a second copy of the same path and tooltip. The rendered
+        // markup is unchanged — the glyph moved to `EventIcons.PencilLineIcon`
+        // and the hover state now lives on the button instead of this
+        // component's root, which is equivalent here because the root holds
+        // nothing else while the dropdown is closed.
+        <EditPencil
+          tooltip="Click here to change your location"
+          label="Edit location"
+          onClick={() => setOpen((v) => !v)}
+          active={open}
+        />
       ) : variant === "inline" ? (
         // Inline trigger for the navbar "Add Location" slot — pin + selected city
         <button

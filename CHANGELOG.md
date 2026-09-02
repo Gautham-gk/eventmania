@@ -9,6 +9,267 @@
 
 ---
 
+## 2026-09-02
+
+- **The console's event pills are tag-palette fills, and its tabs move like the control beside
+  them** (Gautham) — an events row's "On sale" / "Draft" / "Free" / price chips dropped the 12%
+  tone wash for a solid palette colour with a linen label, so they read as the same object as a
+  card's "This Week" tag; the four new hues are taken from the reserve list in `EventBadges.tsx`
+  and recorded there (Attendees keeps the wash). `Pill` gained `type` and lost `outline`. Separately
+  `Tabs` dropped `.nf-chip` — the select-pop and press-squish that made it move unlike the
+  "See all events" control inches away — and an unpicked tab now takes the app-wide green hover.
+
+- **"About this event" has an edit pencil in the organiser view** (Gautham) — the same glyph and
+  tooltip the home page puts beside the city name, opening the existing "Edit details" dialog with
+  the caret already in the description box. The trigger was lifted out of `CityPicker` into a shared
+  `EditPencil` and its glyph into `EventIcons.PencilLineIcon`, so the two surfaces are one object
+  rather than a second copy of the same path; home's rendered markup is unchanged. `EditPencil`
+  splits `tooltip` (the visible invitation) from `label` (the accessible name), because "click here"
+  is filler in front of a screen reader's "button". `EditEventModal` gained `focusField`.
+
+- **The console header's "N need you" pill is gone** (Gautham) — with it the `needsYou` count, the
+  shell's `organizer-attendees` query (the counter was its only consumer, so the console no longer
+  fetches attendees on every section) and four imports. It was a `<span>`, not a link: it named a
+  number of chores and offered nowhere to go, beside an inert search box that made it read as a
+  search property. ⚠️ **Its two signals — refund requested, awaiting payment — are now owed to the
+  notification bell** (`TODO.md` §24); until that lands an organiser has no ambient indicator at
+  all. `PendingIcon` kept, caller-less, for that bell.
+
+- **Decided: notifications belong in the navbar bell, and the console's "N need you" pill goes**
+  (Gautham) — the pill is a dead end sitting beside an inert search box, duplicating the dashboard's
+  "Needs you today" column one screen below. The bell takes **both** audiences in a **dropdown
+  panel**; the chat button keeps its own unread glow. Build deferred — a real notification feed needs
+  storage, producers and read endpoints, and the existing `notification` service is a Kafka-driven
+  **mailer** with no database and no read routes. Spec, traps and the unblocked frontend-only half:
+  `TODO.md` §24.
+
+---
+
+## 2026-09-01
+
+- **The organiser console's Event rooms section is gone** (Gautham) — route, rail item, speech-bubble
+  glyph, room/thread fixtures and the whole unanswered-question count deleted. Attendee conversation
+  belongs to the chat surfaces for organisers and participants alike, and the organiser side of that
+  is the backend's job (`TODO.md` §19.1, rewritten). The header's "N need you" pill now counts
+  attendees only, and the dashboard hero lost its "Questions" tile and both room CTAs. The
+  participant-facing chat is untouched. The console is four sections now.
+
+- **The organiser console's Settings section is gone** (Gautham) — route, rail item and gear glyph
+  deleted, along with its organiser-profile, event-defaults and team-&-notifications groups. Its
+  four **payment terms** (receiving account, convenience fee, refund window, who approves refunds)
+  moved to a read-only **Payments** card at the foot of Earnings, where an organiser is already
+  looking at the money. The console is five sections now.
+
+- **The event's lifecycle status is now four states, editable by its organiser and visible to
+  everyone** (Gautham) — Draft / Live / **Registration closed** / Cancelled. The hero chip became a
+  select in the organiser view and gained a fixed, participant-facing twin in the participant one;
+  "Published" was renamed **Live** and "Finished" was dropped (the backend's `completed` folds onto
+  Registration closed). Registration closed keeps the event visible and blocks new joins — no
+  dimming, no banner, CTA and sticky bar say so. ⚠️ **Frontend-first, by decision:** the backend
+  enum has no such value and `/event/search` defaults to `published`, so the option is disabled off
+  dummy mode — `TODO.md` §23. ⚠️ The cancelled organiser tooltip promises a notification nothing
+  sends; flagged, kept as specified.
+- **Create, edit and the event page now cover the same fields.** The create form gained the cover
+  image and offer name it was missing; the edit dialog gained category, event type, language,
+  target audience, tags and website — all real columns the backend's `EventUpdate` had always
+  accepted and `EventUpdateData` had never declared. The four choice lists moved to
+  `lib/event-options.ts` so the two forms cannot drift, each guarded by `withCurrent` against a
+  select silently rewriting a Ticketmaster row's category.
+- **Ticket price and currency are chosen once, at creation, and locked afterwards** (Gautham) —
+  reversing the 2026-08-24 call that made the price editable with a warning. The edit dialog shows
+  both read-only with the reason, and the title alongside them. Capacity stays freely editable.
+- **Console buttons press like the rest of the app.** `ConsoleButton` dropped
+  `transition-all duration-150 active:scale-[0.98]` for a plain `transition-colors`, matching
+  `/event/[id]`'s `DetailCTA` / `DetailStickyBar` — it was the only labelled button in NewFind that
+  squished under the thumb, including on `/event/[id]` itself via the `EventSections` edit control.
+  Sweeps all six console sections. `DESIGN_NOTES.md` §11 records why the squish came back off.
+- **The organiser block on `/event/[id]` is now identical in both views.** `OrganiserEventCard`'s
+  header dropped "Your event / Organiser view" for `BookingCard`'s "Organised by … Verified · 40+
+  events", so toggling the participant preview no longer changes it. Both cards read one
+  `ORGANISER_NAME` constant, renamed **EventMind Collective → NewFind Collective**; it stays the
+  `TODO.md` §1 placeholder, which now records that the real value is the organisation's
+  `company_name` (already collected at `/organizer/onboarding`), not the signed-in person's name.
+  `useOwnerName()` deleted with its only call site.
+
+## 2026-08-31
+
+- **The detail card's full-width controls now share one skin.** `DetailCTA`'s `outline` variant
+  moved off the green-on-green outline onto `ConsoleButton`'s outline tone — surface ground,
+  `--brand-text` label, 2px `--brand-control-border` — matching the section edit controls it sits
+  beside. "Manage attendees", "Manage revenue" and the participant's "Book Now" all wear it; the
+  sticky bar keeps the green fill.
+
+- **`/organizer/create` gained optional Agenda and FAQ sections.** The row editor moved out of
+  `EditListModal` into a shared `ListEditor`, so the create form and the event page's edit dialog
+  cannot drift. Announcements stay off the create form on purpose (an announcement updates an event
+  that already exists). Still no backend column for either — Gautham chose frontend-now again, so
+  both are disabled in real mode and the migration is logged in `TODO.md` §19.12, which now also
+  covers `EventCreate` and the second `EXTRA_KEYS` strip. `eventsSource.create()` is new alongside it.
+
+- **The Component Registry moved to its own `COMPONENTS.md`, and verification defaults were
+  scoped.** `CLAUDE.md` was trimmed 105 KB → 48 KB on 2026-08-14 and had grown back to 104 KB (~30k
+  tokens read every turn) in the seventeen days since — **86% of it the registry, 20 KB → 67 KB**,
+  as each landing feature added rows and fattened existing ones per Contribution Guideline 4. The
+  organiser console section alone is 26 KB; `FeatureBand`'s single row is 11 KB. Neither existed on
+  2026-08-14. **Nothing was overwritten — the growth was per-task accretion with no rule bounding
+  the total.** `CLAUDE.md` keeps a one-line index and is now ~12.6k tokens; guideline 4 now states
+  that a row grown into an essay is a bug. Alongside it: type-check gained one
+  narrow exception (edits the compiler cannot see), lint and browser verification became
+  conditional, and `apps/web/AGENTS.md`'s "read `node_modules/next/dist/docs/` before writing any
+  code" was scoped to unfamiliar framework APIs — it had directly contradicted `CLAUDE.md`'s
+  do-not-read-`node_modules` rule.
+
+- **`/event/[id]` lost both organiser bands; they are controls in the hero row now.** The row's
+  organiser half reads **state → lens → actions**: a lifecycle **status chip** (with its Publish
+  button on a draft), a segmented **Participant view ⇄ Organiser** toggle shown in both modes, then
+  the three round controls. Both new controls are skinned as one of that set, and the whole row now
+  reads as one: 48px on a linen ground, a 2px `--brand-hint` outline (brand-black in light,
+  brand-white in dark — an approved exception to the `--brand-control-border` rule, scoped to this
+  row), a label that goes green under the pointer, green when picked. Both bands' sentences were
+  shortened into hover labels. `CancelledBanner` — a public statement, not an organiser control —
+  is the page's only remaining band.
+
+---
+
+## 2026-08-24
+
+- **The organiser view of `/event/[id]` became a management surface.** Eleven additions, all behind
+  the existing `useIsEventOwner` gate and invisible to participants: a **lifecycle strip** under the
+  green mode bar (Draft / Published / Cancelled / Finished, with a **Publish** confirmation on a
+  draft); the booking card replaced by an **organiser card** carrying sold-vs-capacity, revenue so
+  far and links to **Manage attendees** and **Manage revenue**, both deep-linked to this event via
+  `?event=<id>` — which both console pages now honour with a working dropdown; a third hero control,
+  **Duplicate event**, which copies the plan into a fresh draft at zero sales (and deliberately not
+  the announcements); and **announcements, agenda of the programme and FAQ** as public sections a
+  participant reads and the organiser edits through one shared list dialog. The edit dialog grew
+  from four fields to five labelled groups, now covering **ticket price, offer name ("Early bird"),
+  allowed number of participants and cover image**.
+- **Reversed: price and capacity are editable.** They were excluded on 2026-08-21 because they
+  change what a ticket holder already bought. Gautham asked for them on 2026-08-24 and chose the
+  guardrail with them — **free edit, warning only**: capacity may go below `tickets_sold`, and the
+  dialog states plainly that no ticket is voided, re-priced or refunded and that nobody is told.
+  The title and the currency stay out (the currency because a mid-life change makes every Earnings
+  total a sum across two — `TODO.md` §19.10).
+- **The Attendees "Export CSV" button does something.** It had no handler at all. `lib/csv.ts` is now
+  the one CSV path: RFC-4180 escaping, a formula-injection guard on leading `=+-@`, a UTF-8 BOM so
+  Excel renders `₹` and non-ASCII names, and bare numbers beside a currency column so the file can
+  be summed.
+- **Decided: the organiser extras ship frontend-only for now.** Agenda, announcements, FAQ, offer
+  name and cover image have no backend column, and adding them means hand-written migrations (there
+  is no Alembic). Rather than let a save vanish silently, every authoring control is **disabled with
+  an explanation** in `real` data mode and works fully in `dummy`. Spec for making them real —
+  starting with `image_url`, which needs one line and no migration — is `TODO.md` §19.12.
+
+## 2026-08-22
+
+- **The organiser console now carries the home page's design signature.** It was token-coherent and
+  signature-incoherent: the same `--brand-*` colours, but its own type scale (everything pinned at or
+  under the 15px floor, plus 11px uppercase micro-labels), no photography, no hover on anything, and
+  its own dialect of the filter tab. Four changes, all one-directional — **nothing on home,
+  `/explore` or `/event/[id]` was restyled**: (1) the console moved onto the **site's type scale** —
+  20px row titles, 17px body, 32px extrabold stat figures, section headings on `EventsCarousel`'s
+  own `font-extrabold`/`-0.5px` recipe — which removed the console's 24 `data-keep-type` opt-outs and
+  left it the only region of the app that never breaks the 15px floor; (2) the **uppercase
+  micro-label is gone**, and a status `Pill` is now an `EventBadge` in everything but its colours;
+  (3) **things react to the pointer** — rows wash green, `RowAction` replaced three hand-rolled
+  hoverless outline links, and `ConsoleButton`'s tones moved from inline styles to classes (an inline
+  colour beats `hover:`, so the console's buttons *could not* have had a hover state); (4) **the
+  console has photographs** — every table row carries the event's own card picture, and the dashboard
+  hero is that photo under `HERO_SCRIM` instead of a flat ink slab. `Tabs` is now literally the home
+  page's filter tab. Shared as a side effect: `cardImageUrl` (one placeholder-URL rule) and
+  `HERO_SCRIM` (was copy-pasted in two pages).
+
+## 2026-08-21
+
+- **An organiser can now edit and cancel their own event from its public page.** `/event/[id]`
+  gained a full-width green mode bar for the event's own organiser — the **organiser view** by
+  default, with a terracotta "Preview as participant" button to see what a visitor sees — and in the
+  organiser view the hero's wishlist and share buttons are replaced by **Edit details** (description,
+  start/end date & time, city, venue or online link) and **Cancel event**. A cancelled event keeps its page and wears the
+  sold-out treatment: greyed hero, greyed booking card, disabled CTAs, and a banner saying so.
+  ⚠️ **Both write through `PATCH /event/{id}` and nothing else happens** — the backend does not treat
+  a date/venue change as a postponement, sends no notification or email to ticket holders, and does
+  not check that the caller owns the event. Both dialogs say so on screen. Backend spec: `TODO.md`
+  §20.
+- **`TODO.md` is now classified `[FE]` / `[BE]` / `[FE+BE]` / `[OPS]`** (Gautham's ask) — a tag in
+  every heading plus an index table at the top, and per-bullet tags in §11, so it is clear at a
+  glance which side of the stack an item can be moved from.
+- **The organiser console's Events filters work, and public/private is gone from it.** The three
+  dropdowns above the table were disabled placeholders that never opened. Two of them are now real
+  (`FilterSelect`): price — Paid / Free / Paid & free — and date order — soonest or latest first —
+  filtering and sorting client-side over rows already in memory, since nothing there was ever
+  waiting on a backend. The third is deleted: **every event NewFind serves is public**, so a
+  visibility filter offered a state no event can be in. With it went the hardcoded "Public" pill on
+  every row (dashboard and Events alike) and the two lines of copy promising invite-only events.
+
+- **The dummy events and the organiser dashboard are one world now.** They were two: the console's
+  hero, rooms, attendees and earnings described five Mumbai events that existed nowhere else, while
+  the table under them listed the home page's New York ones. The console's events are now real
+  `Event` objects (`dummyMyEvents`, eight of them across all four buckets) with cards and detail
+  pages, and `lib/fixtures/organizer.ts` **derives** every room, earnings row and roll-up from them
+  instead of restating figures. Same numbers as before — 8 events, 309 tickets, ₹342,600 net — but
+  computed, so they can no longer disagree with the table beside them.
+- **The organiser console is organiser-only.** A login is no longer enough: no organiser profile now
+  gets an explaining state with one link to `/organizer/onboarding`, the same definition of
+  "organiser" `/organizer/create` already used. Dummy mode treats the signed-in developer as the
+  organiser on purpose.
+- **The console reads each row's own currency instead of hardcoding `INR`** (four call sites), and
+  the New York fixtures are tagged `USD` — they had been rendering `$45` events as `₹45`.
+- **The organiser console lost its gold accent — the whole console is now on terracotta.**
+  `--brand-gold` / `-hover` / `--brand-on-gold` are deleted from `globals.css`, and `ConsoleUI`'s
+  `GOLD`/`ON_GOLD` are now `ACCENT`/`ON_ACCENT` on `--brand-terracotta` (button tone `gold` → `accent`).
+  So the console has ONE accent rather than gold-on-ink beside terracotta-on-linen. Known, accepted
+  cost: small terracotta text on the ink hero is ~3.3:1 where gold was ~7.5:1.
+- **The navbar is now split by audience** — "Events" and the standalone "Organiser dashboard" link
+  became two always-visible dropdowns: **Participants** (Explore Events / My Tickets / My Wishlist)
+  and **Organisers** (Create Event / Dashboard). My Wishlist moved out of the avatar menu, which is
+  now account-only. `/dashboard` tabs now read the `?tab=` param on every render instead of once on
+  mount, so the two dropdown links into it actually switch tabs.
+- **"Browse by category" tiles lost their explore arrow, and the chip shrank to 18px.** The arrow was
+  decoration for what the whole-tile link already said — third affordance round to be cut there, after
+  the Explore button and the arrow's tooltip. The chip then scaled ×0.9 across all six of its
+  numbers (type, leading, glyph, both paddings, gap) at Gautham's request.
+- **Home filter tabs are rounded rectangles, not pills** — both rows in `EventsCarousel` moved from
+  `rounded-full` to `rounded-xl`, taking the event card's "View details" silhouette. Gautham's call
+  after seeing the two shapes side by side; an approved departure from the shape rule's `rounded-lg`
+  for small controls. Closes `TODO.md` §8 for events; `CommunityCarousel` stays pilled while parked.
+- **"Organiser dashboard" is now a top-level navbar item**, beside Events (authed only). The `lg`
+  search box narrowed 250→170 to pay for its width; `xl` untouched.
+- **Console rail restyled** — it is now a themed surface (linen / dark ground) rather than a
+  deep-green block, with green active states and terracotta section counts. Wordmark, the
+  "Organising" label and the organiser footer block removed from it.
+- **The organiser is always the signed-in user**, in both data modes — the fixture name is gone from
+  the greeting, the room announcements and the settings profile. The dummy *figures* stay made up.
+
+## 2026-08-20
+
+- **Organiser dashboard v2** — `/organizer` replaced by a six-section console (Dashboard, Events,
+  Event rooms, Attendees, Earnings, Settings) imported from the Claude Design file "Organiser
+  Dashboard v2". Sits under the app navbar behind a deep-green rail; navbar entry renamed
+  *Organizer Console* → *Organiser Dashboard*. Closes the front end of `TODO.md` §14.
+- **Fixed: the organiser console listed other people's events.** The old `/organizer` called
+  `eventsApi.search()` with no `organizer_id`, so every published event on the platform appeared
+  under "Your Managed Events". Also removed its three hardcoded figures (revenue `12450`, attendees
+  `1,240`, per-row `price * 120`).
+- **Decision upheld on import: the 2% is the participant's, not the organiser's.** The imported
+  Earnings design deducted the platform fee from the organiser's payout; that is the model `TODO.md`
+  §13 rules out. Reworked to `net = gross − refunds`, with the fee shown as an informational
+  "Buyer fee" column.
+- **Two new brand tokens** — `--brand-ink` (the deep-green console panel; `--brand-green` resolves to
+  a light mint in dark mode and cannot fill one) and `--brand-gold` (the console's accent on that
+  panel). Both fixed in each theme, like `--brand-terracotta`. Approved by Gautham.
+
+## 2026-08-19
+
+- **`FeatureBand` shows both audiences at once — the switch is gone.** Gautham's call: participant tiles left, organiser tiles right, each feature tile naming its own audience with a filled badge above its title — green `Participants`, terracotta `Organisers` — instead of hiding half the pitch behind the `RailToggle`. Each half now **ends in a CTA tile** (Explore events / Create an event), which retired the outline button pair under the grid. **"Everything in one feed" is commented out**, so it runs 2 + CTA against 3 + CTA. **The band's width cap is gone** (960 → 1400 → none) — seven tiles need the width, so it now runs gutter to gutter like the sections above and below it; it still starts at the gutter and is still not centred. The CTA tiles carry **no audience label** (their opening question already names it) and centre their contents against the taller feature tiles. Icon chips were dropped — the audience badge takes their place at the top of each feature tile — and **every tile centres horizontally** while the section heading stays left-aligned. Vertically, only the two CTA tiles centre: feature tiles are top-aligned so their titles all start on one line. There is no subtitle under the heading. **Type now matches the event card** — 20px bold titles, 18px body, and the audience badge styled as a status tag (`Selling Fast`/`This Week` chrome, 16px) — because the two sit on the same page and the band read visibly smaller at 18/16. **Each half is skinned by one accent** — green for participants, terracotta for organisers — which is the badge fill, the badge's inverted label, and **the tile's own hover fill**, so the four organiser tiles hover **terracotta**: an approved, documented exception to the app-wide "hover → green" rule.
+- **`FeatureBand` copy revised, and the 2% fee changed hands.** Gautham's rewrite: the fee is now a **convenience fee paid by the participant**, not deducted from the organiser ("Free to list. Small fee for priced events."), which is a different build — see `TODO.md` §13. The stats card also **stopped naming figures** ("info and stats" rather than "tickets sold, revenue"), which lowers the bar §14 has to clear. The assistant card now names the launcher's colour outright, so the inline `AssistantLauncherGlyph` becomes the thing that keeps that sentence verifiable rather than a flourish.
+
+## 2026-08-17
+
+- **`FeatureBand` added to home** — six feature cards between the Online Events row and "Browse by category", split three/three behind a **For Participants / For Organisers** switch (the shared `RailToggle`, not a new control). Equal three-up cards that fill green on hover; the heading sets "NewFind" as the real `Wordmark` in green rather than type. Search filters were cut as "standard on any site now". AI *recommendations*, "sell tickets" and "verified organisers" were deliberately left off as claims the product would fail on — the AI story is anchored to the event assistant, which is real. **Three cards are knowingly forward-looking** (pricing, stats, and the half-true chat lead) — Gautham's call; see `STATUS.md`.
+- **`TODO.md` §2b — tag derivation belongs in the backend.** All four live tags are computed client-side in `toCarouselEvent`, and `tickets_sold` turns out to be written by nothing in the repo, so `sold-out` and `selling-fast` can never fire on a real event — the same failure as §2, on two more tags. Also logs the duplicate predicates in `explore/page.tsx` and the fact that client-side tags cannot be filtered server-side.
+- **`TODO.md` §7b, §13, §14 logged** — whether the event assistant should open to non-registered users (it 403s them today, which is backwards from when it is most useful); the free-to-list / 2% pricing model, now promised on the home page and entirely unbuilt; and the organiser stats dashboard, which also records that `/organizer` calls `eventsApi.search()` with no `organizer_id` and is showing every organiser the whole platform's events.
+
 ## 2026-08-14
 
 - **Communities cut from the MVP and parked for Phase 2.** Gautham's call: users must not encounter the word "community" anywhere — nav, footer, Explore, hero, wishlist, Create Event, page title or PWA manifest. Nothing was deleted: every removal is a `PARKED 2026-08-14 (MVP)` comment block, `/community/*` redirects home via a new `app/community/layout.tsx`, and the community components, fixtures, API clients and backend service all stay intact. Explore is now events-only (the 3-way view switch is parked outright — a one-option switch reads as broken). Restore is `grep "PARKED 2026-08-14"` plus deleting that layout.

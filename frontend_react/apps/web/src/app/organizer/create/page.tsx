@@ -3,33 +3,40 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 // PARKED 2026-08-14 (MVP) — `communityApi` dropped from this import.
-import { eventsApi, organizerApi } from "@eventmind/api";
+import { organizerApi } from "@eventmind/api";
 import { useAuthStore, CITIES } from "@eventmind/store";
 import type { City } from "@eventmind/store";
 // PARKED 2026-08-14 (MVP) — `Community` dropped from this import.
 import type { CurrencyCode } from "@eventmind/types";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@eventmind/types";
 import { Navbar } from "@/components/navbar/Navbar";
+import { FormField, inputCls } from "@/components/FormControls";
+import {
+  ListEditor,
+  dropBlankRows,
+  rowErrors,
+  toPatch,
+  type Row,
+} from "@/components/organizer/ListEditor";
 import { currencySymbol } from "@/lib/currency";
+import { EXTRAS_ARE_LOCAL, eventsSource } from "@/lib/data-source";
+import { SKIP_ORGANIZER_VERIFICATION } from "@/lib/dev-flags";
+import { EXTRAS_HINT } from "@/lib/event-extras";
+import {
+  CATEGORIES,
+  EVENT_TYPES,
+  LANGUAGES,
+  TARGET_AUDIENCES,
+  type EventType,
+} from "@/lib/event-options";
 import { GUTTERS } from "@/lib/layout";
 
 const GREEN = "var(--brand-green)";
 
-const CATEGORIES = ["Technology", "Creative", "Business", "Summit", "Networking", "Gaming", "Health & Wellness", "Education", "Arts & Culture", "Sports", "Food & Drink", "Other"];
-const EVENT_TYPES = ["In-Person", "Online", "Hybrid"] as const;
-const LANGUAGES = ["English", "French", "Dutch", "German", "Spanish", "Portuguese", "Arabic", "Hindi", "Other"];
-const TARGET_AUDIENCES = [
-  "Developers & Engineers",
-  "Business & Entrepreneurs",
-  "Students & Graduates",
-  "Creatives & Designers",
-  "Marketing & Sales",
-  "HR & People Ops",
-  "Investors & VCs",
-  "General Public",
-];
-
-type EventType = typeof EVENT_TYPES[number];
+/* CATEGORIES / EVENT_TYPES / LANGUAGES / TARGET_AUDIENCES were declared here
+   until 2026-09-01. They moved to `lib/event-options.ts` when the edit dialog
+   gained the same four controls — one list or the two forms drift, which is the
+   same reason `FormField` left this file. */
 
 function subFromToken(token: string | null): string {
   if (!token) return "00000000-0000-0000-0000-000000000001";
@@ -70,6 +77,36 @@ export default function CreateEventPage() {
   const [price, setPrice] = useState("0");
   const [currency, setCurrency] = useState<CurrencyCode>(DEFAULT_CURRENCY);
 
+  /* The two extras the EDIT dialog has always had and this form did not, added
+     2026-09-01 so an organiser can author on the way in rather than publishing
+     and immediately opening "Edit details". Both are read straight off the
+     event by `/event/[id]` — `image_url` is the hero photo, `offer_name` is the
+     caption above the price in the booking card.
+
+     ⚠️ Same `EXTRAS_ARE_LOCAL` gate as the agenda and FAQ editors below, for the
+     same reason: neither survives a real-mode create (`EXTRA_KEYS` in
+     lib/event-extras.ts). `image_url` is the cheapest of the five to make real —
+     it is a column already, just missing from the backend schemas. */
+  const [offerName, setOfferName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+
+  /* The two optional authored lists an organiser can seed at creation time.
+     Both start EMPTY — an event with no agenda is normal, and a pre-added blank
+     row would read as something you must fill in.
+
+     ⚠️ ANNOUNCEMENTS ARE DELIBERATELY NOT HERE (Gautham, 2026-08-31). An
+     announcement is an update posted to an event people have already booked,
+     dated and rendered newest-first; there is nothing to update at the moment
+     the event is being written. They stay where they belong — the organiser
+     view on `/event/[id]`.
+
+     ⚠️ Neither list survives a real-mode create: `EventCreate` has no column for
+     them (TODO.md §19.12), so both editors are disabled off `EXTRAS_ARE_LOCAL`,
+     the same gate every other authoring control in the app reads. */
+  const [agendaRows, setAgendaRows] = useState<Row[]>([]);
+  const [faqRows, setFaqRows] = useState<Row[]>([]);
+  const [listErrors, setListErrors] = useState<Record<string, string>>({});
+
   /* PARKED 2026-08-14 (MVP) — the whole "add this event to my community" feature.
      Communities are deferred to Phase 2. These five pieces are interdependent —
      the state, the lookup, the payload field and the form section — so they park
@@ -87,10 +124,14 @@ export default function CreateEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
-  const [verificationChecked, setVerificationChecked] = useState(false);
+  /* Starts true under the dev bypass — the gate is then already open on the first
+     render. Setting it from inside the effect instead would trip
+     `react-hooks/set-state-in-effect` and cost a throwaway render. */
+  const [verificationChecked, setVerificationChecked] = useState(SKIP_ORGANIZER_VERIFICATION);
 
   useEffect(() => {
     if (!isAuthenticated) { router.replace("/auth"); return; }
+    if (SKIP_ORGANIZER_VERIFICATION) return;
     const userId = subFromToken(tokens?.access_token ?? null);
     if (!userId) return;
 
@@ -119,7 +160,8 @@ export default function CreateEventPage() {
     );
   }
 
-  function validate(): boolean {
+  /** `agenda` / `faq` arrive already pruned of blank rows — see `handleSubmit`. */
+  function validate(agenda: Row[], faq: Row[]): boolean {
     const errors: Record<string, string> = {};
     if (title.trim().length < 5) errors.title = "Title must be at least 5 characters.";
     if (description.trim().length < 20) errors.description = "Description must be at least 20 characters.";
@@ -133,13 +175,30 @@ export default function CreateEventPage() {
     if (parseFloat(price) < 0) errors.price = "Price cannot be negative.";
     if (eventWebsite && !eventWebsite.match(/^https?:\/\/.+/))
       errors.eventWebsite = "Website must start with http:// or https://";
+    // Same test as the edit dialog's — a cover image that 404s is the hero of
+    // the page the organiser is about to share.
+    if (imageUrl.trim() && !/^https?:\/\/\S+$/i.test(imageUrl.trim()))
+      errors.imageUrl = "Enter a full image URL starting with http:// or https://";
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+
+    // Keyed by row id, so the two lists share one map without colliding.
+    const listErrs = { ...rowErrors("agenda", agenda), ...rowErrors("faq", faq) };
+    setListErrors(listErrs);
+
+    return Object.keys(errors).length === 0 && Object.keys(listErrs).length === 0;
   }
 
   async function handleSubmit(e: React.FormEvent, mode: "publish" | "draft") {
     e.preventDefault();
-    if (!validate()) return;
+
+    // A row the organiser added and then left completely blank is an accident,
+    // not data — drop it rather than blocking the save on its required fields.
+    const agenda = dropBlankRows("agenda", agendaRows);
+    const faq = dropBlankRows("faq", faqRows);
+    setAgendaRows(agenda);
+    setFaqRows(faq);
+
+    if (!validate(agenda, faq)) return;
 
     setError(null);
     setIsSubmitting(true);
@@ -156,8 +215,12 @@ export default function CreateEventPage() {
       if (onlineUrl.trim()) location.online_url = onlineUrl.trim();
 
       const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      // Sent unconditionally; `eventsSource.create` strips them in real mode,
+      // where the backend has no column for either (TODO.md §19.12). Both are
+      // empty there anyway — the editors below are disabled.
+      const now = new Date().toISOString();
 
-      await eventsApi.create({
+      await eventsSource.create({
         organizer_id: organizerId,
         title: title.trim(),
         description: description.trim(),
@@ -176,6 +239,12 @@ export default function CreateEventPage() {
         price: parseFloat(price) || 0,
         currency,
         status: mode === "publish" ? "published" : "draft",
+        // Both stripped in real mode alongside the two lists, where the
+        // controls that set them are disabled and these are empty anyway.
+        offer_name: offerName.trim() || undefined,
+        image_url: imageUrl.trim() || undefined,
+        ...toPatch("agenda", agenda, now),
+        ...toPatch("faq", faq, now),
       });
 
       setSuccess(true);
@@ -188,6 +257,7 @@ export default function CreateEventPage() {
   }
 
   const descMax = 1000;
+  const extrasOff = !EXTRAS_ARE_LOCAL;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
@@ -196,8 +266,17 @@ export default function CreateEventPage() {
       <div className={`py-10 max-w-3xl mx-auto ${GUTTERS}`}>
         {/* Header */}
         <div className="flex items-center gap-4 mb-10">
+          {/* Under the dev bypass this walks to /organizer/onboarding rather than
+              into history, so the two pages can be reviewed as a pair. For a real
+              organiser it stays plain history — they reach this form from the
+              console, and sending them to a verification page they have already
+              completed would be a bug, not a shortcut. */}
           <button
-            onClick={() => router.back()}
+            onClick={() =>
+              SKIP_ORGANIZER_VERIFICATION
+                ? router.push("/organizer/onboarding")
+                : router.back()
+            }
             className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
             style={{ border: "2px solid var(--brand-control-border)", backgroundColor: "var(--brand-bg)" }}
           >
@@ -220,7 +299,7 @@ export default function CreateEventPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., EventMind AI Summit 2026"
+                placeholder="e.g., NewFind AI Summit 2026"
                 className={inputCls(!!fieldErrors.title)}
               />
             </FormField>
@@ -429,6 +508,97 @@ export default function CreateEventPage() {
                 )}
               </FormField>
             </div>
+
+            {/* ⚠️ PRICE AND CURRENCY ARE FINAL (Gautham, 2026-09-01). Neither can
+                be changed after this form — the edit dialog shows both read-only.
+                Say so HERE, where the decision is actually being made, rather
+                than only in the dialog that refuses it later. */}
+            <p className="text-[15px] leading-relaxed" style={{ color: "var(--brand-hint)" }}>
+              The ticket price and currency are fixed once the event is created — they are what a
+              ticket, a receipt and every earnings total are written in. Everything else on this page
+              can be edited later.
+            </p>
+
+            {/* An offer name on a free event names a discount off nothing —
+                same condition the edit dialog uses. */}
+            {parseFloat(price) > 0 && (
+              <FormField
+                label="Offer name"
+                hint={extrasOff ? "needs the backend" : "shown above the price"}
+              >
+                <input
+                  type="text"
+                  value={offerName}
+                  disabled={extrasOff}
+                  title={extrasOff ? EXTRAS_HINT : undefined}
+                  onChange={(e) => setOfferName(e.target.value.slice(0, 40))}
+                  placeholder="e.g., Early bird"
+                  className={`${inputCls(false)} ${extrasOff ? "opacity-60 cursor-not-allowed" : ""}`}
+                />
+              </FormField>
+            )}
+          </Section>
+
+          {/* ── Cover image (optional) ── */}
+          <Section title="Cover image" optional>
+            <FormField
+              label="Image URL"
+              hint={extrasOff ? "needs the backend" : "leave blank for the default photo"}
+              error={fieldErrors.imageUrl}
+            >
+              <input
+                type="url"
+                value={imageUrl}
+                disabled={extrasOff}
+                title={extrasOff ? EXTRAS_HINT : undefined}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://…"
+                className={`${inputCls(!!fieldErrors.imageUrl)} ${extrasOff ? "opacity-60 cursor-not-allowed" : ""}`}
+              />
+            </FormField>
+
+            {/* ⚠️ A PLAIN <img>, and it must stay one — `next/image` refuses a
+                host that is not in next.config.ts's `remotePatterns`, and the
+                whole point of this field is that an organiser types their own.
+                The edit dialog and the event hero render it the same way. */}
+            {imageUrl.trim() && !fieldErrors.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl.trim()}
+                alt=""
+                className="w-full aspect-video object-cover rounded-xl"
+                style={{ border: "1px solid var(--brand-border)" }}
+              />
+            )}
+
+            <p className="text-[15px] leading-relaxed" style={{ color: "var(--brand-hint)" }}>
+              There is no upload yet — paste a link to an image you already host. It becomes the
+              photo at the top of the event page; the event cards keep their own picture.
+            </p>
+          </Section>
+
+          {/* ── Agenda (optional) ── */}
+          <Section title="Agenda of the programme" optional>
+            <ListEditor
+              kind="agenda"
+              rows={agendaRows}
+              onChange={setAgendaRows}
+              errors={listErrors}
+              disabled={!EXTRAS_ARE_LOCAL}
+              disabledNote={`An agenda cannot be saved yet. ${EXTRAS_HINT}`}
+            />
+          </Section>
+
+          {/* ── FAQ (optional) ── */}
+          <Section title="Frequently asked questions" optional>
+            <ListEditor
+              kind="faq"
+              rows={faqRows}
+              onChange={setFaqRows}
+              errors={listErrors}
+              disabled={!EXTRAS_ARE_LOCAL}
+              disabledNote={`An FAQ cannot be saved yet. ${EXTRAS_HINT}`}
+            />
           </Section>
 
           {/* ── PARKED 2026-08-14 (MVP): the Community section ──
@@ -513,44 +683,22 @@ export default function CreateEventPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** `optional` marks a section the organiser may skip entirely — said once, in
+ *  the heading, rather than "(optional)" on every field inside it. */
+function Section({ title, optional, children }: { title: string; optional?: boolean; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl p-5 sm:p-8 space-y-6" style={{ backgroundColor: "var(--brand-bg)", border: "1px solid var(--brand-border)" }}>
-      <h2 className="text-[18px] font-bold" style={{ color: "var(--brand-text)" }}>{title}</h2>
+      <h2 className="text-[18px] font-bold" style={{ color: "var(--brand-text)" }}>
+        {title}
+        {optional && (
+          <span className="ml-2 font-medium" style={{ color: "var(--brand-hint)" }}>Optional</span>
+        )}
+      </h2>
       {children}
     </div>
   );
 }
 
-function FormField({
-  label,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-semibold" style={{ color: "var(--brand-text)" }}>{label}</label>
-        {hint && <span className="text-xs" style={{ color: "var(--brand-hint)" }}>{hint}</span>}
-      </div>
-      {children}
-      {error && <p className="text-xs" style={{ color: "#EF4444" }}>{error}</p>}
-    </div>
-  );
-}
-
-function inputCls(hasError: boolean): string {
-  return (
-    "w-full px-4 py-3 rounded-xl text-sm transition-colors " +
-    "placeholder:text-[var(--brand-muted)] focus:outline-none focus:ring-2 resize-none " +
-    (hasError
-      ? "border border-red-400 bg-red-50 focus:ring-red-200"
-      : "border border-[var(--brand-border)] bg-[var(--brand-bg)] text-[var(--brand-text)] focus:ring-[var(--brand-green)]/20 focus:border-[var(--brand-green)]")
-  );
-}
+// `FormField` and `inputCls` used to live here. They moved to
+// `components/FormControls.tsx` when the organiser's edit dialog needed the same
+// fields — one definition, so the two forms cannot drift.

@@ -444,7 +444,9 @@ function OnlineEventsRow({
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 aria-pressed={active}
-                className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
+                /* Same silhouette as the offline row's tabs below and as the
+                 * card's "View details" CTA — change the three together. */
+                className="flex-none px-4 py-1.5 rounded-xl text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
                     ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }
@@ -531,7 +533,9 @@ function SeeAllTile({ events, href }: { events: CarouselEvent[]; href: string })
       </div>
 
       {/* Label — font sizes intentionally match event title (text-[20px] font-bold)
-          and date/venue line (text-[18px]) so they stay in sync when those change */}
+          and date/venue line (text-[18px]) so they stay in sync when those change.
+          ⚠️ FeatureBand's tiles copy the same 20/18 pair for the same reason (they
+          sit on this page too) — move those with these. */}
       <div className="flex flex-col items-center gap-1 text-center">
         <span className="text-[20px] font-bold" style={{ color: labelFg, transition: 'color 0.15s ease' }}>
           View all
@@ -635,7 +639,9 @@ export function EventsCarousel({
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 aria-pressed={active}
-                className="flex-none px-4 py-1.5 rounded-full text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
+                /* Same silhouette as the online row's tabs above and as the
+                 * card's "View details" CTA — change the three together. */
+                className="flex-none px-4 py-1.5 rounded-xl text-[20px] font-semibold whitespace-nowrap transition-all duration-150"
                 style={
                   active
                     ? { backgroundColor: GREEN, color: ON_GREEN, border: `2px solid ${GREEN}` }

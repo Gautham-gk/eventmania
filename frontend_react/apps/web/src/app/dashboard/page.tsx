@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore, useTicketsStore, useWishlistStore } from "@eventmind/store";
 import type { StoredTicket, WishlistItem } from "@eventmind/store";
@@ -44,8 +44,18 @@ function DashboardContent() {
   const tickets = useTicketsStore((s) => s.tickets);
   const wishlistItems = useWishlistStore((s) => s.items);
 
-  const initialTab = (searchParams.get("tab") as TabId | null) ?? "tickets";
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  // ⚠️ The URL is the source of truth, NOT local state (2026-08-21). The navbar's
+  // Participants dropdown links straight at ?tab=tickets AND ?tab=wishlist, and a
+  // query-only change does not remount this component — so a `useState` seeded
+  // once from `searchParams` left the second link doing visibly nothing. Reading
+  // the param on every render also makes every tab deep-linkable and Back-able.
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabId =
+    tabParam === "wishlist" || tabParam === "profile" ? tabParam : "tickets";
+
+  // `replace`, not `push` — flipping tabs shouldn't stack history entries that
+  // the Back button then has to walk out of one at a time.
+  const setActiveTab = (tab: TabId) => router.replace(`/dashboard?tab=${tab}`, { scroll: false });
 
   useEffect(() => {
     if (!isAuthenticated) router.replace("/auth");

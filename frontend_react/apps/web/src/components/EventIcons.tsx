@@ -191,6 +191,38 @@ export function BriefcaseIcon({ color = 'currentColor', className = DEFAULT_CLAS
   )
 }
 
+/**
+ * A pencil resting on a ruled line — the app's **"edit this text" affordance**.
+ *
+ * ⚠️ THIS IS NOT `PencilIcon` BELOW, and the two must not be merged. That one is
+ * the **Creative category** tag glyph: it labels a kind of event, it appears
+ * inside a `CategoryBadge`, and it is never a control. This one is only ever a
+ * button — the home page's "edit location" trigger beside the city name, and
+ * `/event/[id]`'s "edit the event details" trigger beside the About heading.
+ * Same object, same drawing, one definition; a category chip and a control that
+ * happened to share a picture would be the coincidence, not the rule.
+ *
+ * ⚠️ IT IS ALSO NOT `ConsoleIcons.EditIcon`, which is the OUTLINE pencil worn by
+ * labelled "Edit" buttons — the hero's round control and the console's rows.
+ * The split is the one that file's header already draws: filled for content
+ * surfaces, outline for chrome. **Two edit pencils is one more than ideal** —
+ * if they are ever unified, unify them deliberately rather than by picking
+ * whichever import was nearest.
+ *
+ * Its own viewBox (`0 -0.5 21 21`) is the source artwork's and is kept as-is so
+ * the drawing is unchanged from the one already shipped on the home page.
+ */
+export function PencilLineIcon({ color = 'currentColor', className = DEFAULT_CLASS }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 -0.5 21 21" fill={color} aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        d="M0,20 L20.616532,20 L20.616532,18.042095 L0,18.042095 L0,20 Z M7.215786,13.147332 L7.215786,10.51395 L13.094591,5.344102 L15.146966,7.493882 L9.903151,13.147332 L7.215786,13.147332 Z M16.244797,2.64513 L18.059052,4.363191 L16.645788,5.787567 L14.756283,3.993147 L16.244797,2.64513 Z M21,4.64513 L16.132437,0 L5.154133,9.687714 L5.154133,15.105237 L10.78657,15.105237 L21,4.64513 Z"
+      />
+    </svg>
+  )
+}
+
 /** Creative. */
 export function PencilIcon({ color = 'currentColor', className = DEFAULT_CLASS }: IconProps) {
   return (

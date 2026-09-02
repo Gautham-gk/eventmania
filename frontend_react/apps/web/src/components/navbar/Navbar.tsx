@@ -20,7 +20,7 @@ const BORDER = BRAND.border;
 const NAV_BORDER = BRAND.navBorder;
 const HINT = BRAND.hint;
 
-type MenuKey = "events" | "groups" | "avatar" | null;
+type MenuKey = "participants" | "organisers" | "groups" | "avatar" | null;
 
 // ── displayName: "biswajith.gopinathan@gmail.com" → "Biswajith" ──────────────
 function displayName(email: string | null): string {
@@ -168,12 +168,14 @@ function AvatarMenu({ name, isOpen, onOpen, onClose, onLogout, isOrganizer }: Av
           style={{ backgroundColor: LINEN, border: `1px solid ${BORDER}` }}
         >
           <div className="absolute -top-1 inset-x-0 h-1" />
+          {/* ⚠️ My Wishlist and Organiser Dashboard are NOT missing — they moved
+              into the Participants and Organisers dropdowns (Gautham,
+              2026-08-21). Do not add either back here: a second door to the same
+              page is exactly the drift the audience split was meant to remove. */}
           <DropdownItem emoji="🎟️" label="My Dashboard" onTap={() => { onClose(); router.push("/dashboard"); }} />
-          <DropdownItem emoji="❤️" label="My Wishlist" onTap={() => { onClose(); router.push("/dashboard?tab=wishlist"); }} />
           {isOrganizer && (
             <DropdownItem emoji="📋" label="My Organised Events" onTap={() => { onClose(); router.push("/organizer/my-events"); }} />
           )}
-          <DropdownItem emoji="🎛️" label="Organizer Console" onTap={() => { onClose(); router.push("/organizer"); }} />
           <div className="my-1 mx-3 h-px" style={{ backgroundColor: BORDER }} />
           <DropdownItem emoji="⚙️" label="Settings" onTap={() => {}} />
           <LogoutItem onLogout={onLogout} />
@@ -373,10 +375,22 @@ export function Navbar() {
     router.push("/auth");
   }
 
-  const eventsItems: NavItem[] = [
+  // ── The row's two audiences (Gautham, 2026-08-21) ──
+  // The nav is split by WHO you are, not by what the object is: everything a
+  // ticket-holder does sits under Participants, everything an event-runner does
+  // under Organisers. Both dropdowns are always visible — the split IS the
+  // navigation, so hiding the organiser half from a signed-out visitor would
+  // hide half the product's story. Items behind a login route to /auth rather
+  // than to a page that bounces.
+  const participantItems: NavItem[] = [
     { emoji: "🔍", label: "Explore Events", onTap: () => { closeAll(); router.push("/explore?view=events"); } },
-    { emoji: "➕", label: "Create Event",   onTap: () => { closeAll(); router.push("/organizer/create"); } },
-    { emoji: "📅", label: "My Events",      onTap: () => { closeAll(); router.push(isAuthenticated ? "/dashboard" : "/auth"); } },
+    { emoji: "🎟️", label: "My Tickets",     onTap: () => { closeAll(); router.push(isAuthenticated ? "/dashboard?tab=tickets" : "/auth"); } },
+    { emoji: "❤️", label: "My Wishlist",    onTap: () => { closeAll(); router.push(isAuthenticated ? "/dashboard?tab=wishlist" : "/auth"); } },
+  ];
+
+  const organiserItems: NavItem[] = [
+    { emoji: "➕", label: "Create Event", onTap: () => { closeAll(); router.push(isAuthenticated ? "/organizer/create" : "/auth"); } },
+    { emoji: "📊", label: "Dashboard",    onTap: () => { closeAll(); router.push(isAuthenticated ? "/organizer" : "/auth"); } },
   ];
 
   /* PARKED 2026-08-14 (MVP) — the Communities dropdown's items. Communities are
@@ -425,12 +439,23 @@ export function Navbar() {
                 is safe by construction at each breakpoint and no re-measure was
                 needed — and the two-step is kept precisely because it is what
                 holds the 1024px fit.
+
+                ⚠️ lg narrowed 250→170 on 2026-08-21, to pay for a second
+                top-level nav item beside the first. That was the
+                "Organiser dashboard" link (~180px, authed-only); later the same
+                day the row became Participants + Organisers, two dropdowns
+                totalling ~265px against the old pair's ~280px — NARROWER, and
+                narrowing is safe by construction, so 170 is kept as headroom
+                rather than given back. The signed-out row grew instead (both
+                dropdowns are always shown), but it carries no chat/bell/avatar,
+                so the authed row is still the fullest one. **xl is untouched:**
+                at 1280+ there is room for everything, so the box keeps its 410.
                 ⚠️ Still the row's only elastic element: WIDENING either number, or
                 adding another desktop nav item, means re-measuring at exactly
                 1024px. Narrowing never can. */}
             <div onMouseEnter={closeAll} className="shrink-0">
               <div
-                className="flex items-center w-[250px] xl:w-[410px] h-10 rounded-lg px-3 gap-2"
+                className="flex items-center w-[170px] xl:w-[410px] h-10 rounded-lg px-3 gap-2"
                 style={{ backgroundColor: LINEN, border: `1.5px solid ${GREEN}` }}
                 onMouseEnter={() => setSearchActive(true)}
                 onMouseLeave={() => setSearchActive(false)}
@@ -464,10 +489,18 @@ export function Navbar() {
             <div className="flex-1" />
 
             <NavDropdown
-              label="Events"
-              items={eventsItems}
-              isOpen={activeMenu === "events"}
-              onOpen={() => setActiveMenu("events")}
+              label="Participants"
+              items={participantItems}
+              isOpen={activeMenu === "participants"}
+              onOpen={() => setActiveMenu("participants")}
+              onClose={closeAll}
+            />
+            <div className="w-2" />
+            <NavDropdown
+              label="Organisers"
+              items={organiserItems}
+              isOpen={activeMenu === "organisers"}
+              onOpen={() => setActiveMenu("organisers")}
               onClose={closeAll}
             />
             {/* PARKED 2026-08-14 (MVP) — the Communities dropdown, together with
@@ -582,8 +615,9 @@ export function Navbar() {
             {/* Theme toggle */}
             <MobileThemeRow />
 
-            {/* Events */}
-            <MobileNavSection title="Events" items={eventsItems} onNavigate={() => setMobileOpen(false)} />
+            {/* The same two audiences as the desktop row — one section each. */}
+            <MobileNavSection title="Participants" items={participantItems} onNavigate={() => setMobileOpen(false)} />
+            <MobileNavSection title="Organisers" items={organiserItems} onNavigate={() => setMobileOpen(false)} />
 
             {/* PARKED 2026-08-14 (MVP) — the mobile Communities section, twin of
                 the desktop dropdown above.
@@ -607,12 +641,12 @@ export function Navbar() {
             ) : (
               <div className="flex flex-col">
                 <MobileNavButton emoji="💬" label="Messages" showDot={hasUnread} onTap={() => { setMobileOpen(false); router.push("/chat"); }} />
+                {/* Mirrors AvatarMenu — wishlist and the organiser dashboard
+                    live in the two sections above, not here. */}
                 <MobileNavButton emoji="🎟️" label="My Dashboard" onTap={() => { setMobileOpen(false); router.push("/dashboard"); }} />
-                <MobileNavButton emoji="❤️" label="My Wishlist" onTap={() => { setMobileOpen(false); router.push("/dashboard?tab=wishlist"); }} />
                 {isOrganizer && (
                   <MobileNavButton emoji="📋" label="My Organised Events" onTap={() => { setMobileOpen(false); router.push("/organizer/my-events"); }} />
                 )}
-                <MobileNavButton emoji="🎛️" label="Organizer Console" onTap={() => { setMobileOpen(false); router.push("/organizer"); }} />
                 <MobileNavButton emoji="🚪" label="Log Out" onTap={() => { setMobileOpen(false); handleLogout(); }} />
               </div>
             )}
@@ -678,6 +712,8 @@ function MobileNavButton({ emoji, label, onTap, showDot }: { emoji: string; labe
 }
 
 // ── Help button ───────────────────────────────────────────────────────────────
+// (The standalone "Organiser dashboard" link that lived here was replaced by the
+// Organisers dropdown on 2026-08-21 — the console is now reached from there.)
 function HelpButton({ onMouseEnter }: { onMouseEnter: () => void }) {
   const hover = useHoverStyle();
   return (

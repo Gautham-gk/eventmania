@@ -269,15 +269,31 @@ export function HeroCarousel() {
             cut. The old `lg:h-[min(82vh,820px)]` made the panel near-square (~777×738)
             and threw away ~40% of each photo's width — Gautham's "cut off in the
             middle". Do not pin a height here again; re-crop the source images first. */}
-        {/* The 5px green frame is Gautham's explicit call (2026-08-11), not the
-            app's border system — it is decoration on a photo, not a control, so
+        {/* The 5px frame is Gautham's explicit call (2026-08-11), not the app's
+            border system — it is decoration on a photo, not a control, so
             neither the 2px `--brand-control-border` rule nor `--brand-border`
             applies. Note `aspect-[16/9]` sizes the BORDER box (Tailwind sets
             box-sizing: border-box), so the frame eats 10px of the photo rather
-            than growing the panel. */}
+            than growing the panel.
+
+            ⚠️ IT IS VISIBLE IN DARK MODE ONLY (Gautham, 2026-08-20). The colour
+            comes from `--brand-hero-frame`, which is green in dark and
+            TRANSPARENT in light — a token, not a `dark:` class, because the
+            theme rides on `data-theme` rather than prefers-color-scheme. The
+            border keeps its 5px in both, so the panel's geometry and the photo
+            crop never shift when the theme flips.
+
+            ⚠️ `backgroundClip: padding-box` is what makes "transparent" actually
+            transparent. Backgrounds paint under the border by default, so
+            without it the #111827 letterbox fill below shows through the frame
+            and light mode gets a black border instead of no border. */}
         <div
           className="relative w-full overflow-hidden rounded-2xl aspect-[16/9] order-2"
-          style={{ backgroundColor: "#111827", border: "5px solid var(--brand-green)" }}
+          style={{
+            backgroundColor: "#111827",
+            backgroundClip: "padding-box",
+            border: "5px solid var(--brand-hero-frame)",
+          }}
         >
           {/* Outgoing image — static, no animation */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

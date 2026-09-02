@@ -47,6 +47,29 @@
   --brand-terracotta: #C1603F;
   --brand-terracotta-hover: #A94F31;
   --brand-on-terracotta: #FFFFFF;
+  /* ── Organiser-console panel ─────────────────────────────────────────────────
+     A FIXED accent (same hex in both themes, exactly like --brand-terracotta
+     above) introduced for the organiser dashboard. It is an accent, not a themed
+     surface, which is why it is not restated in the dark block.
+
+     --brand-ink   the deep-green console panel: the "next event" hero and the
+                   earnings hero. It cannot be --brand-green, because that token
+                   resolves to a light mint (#2F8A80) in dark mode and a large
+                   panel painted mint is unreadable. It is the same species as
+                   Footer.tsx's deliberately-unthemed green block — that file
+                   still carries its own raw #184E4A and should be moved onto
+                   this token the next time it is touched.
+     Approved by Gautham 2026-08-20 alongside the dashboard v2 import.
+
+     ⚠️ THERE IS NO --brand-gold ANY MORE (Gautham, 2026-08-21). The console
+     shipped with a gold accent carrying hierarchy on the ink panel; the whole
+     console is now on --brand-terracotta instead, so the console has ONE accent
+     rather than gold-on-ink plus terracotta-on-linen. Do not reintroduce a gold
+     token — the accent on the ink panel is --brand-terracotta, and the known
+     cost of that (small terracotta text on ink is ~3.3:1, where gold was 7.5:1)
+     was weighed and accepted. See the ACCENT note in ConsoleUI.tsx. */
+  --brand-ink: #13312A;
+  --brand-on-ink: #F1EEE8;
   --brand-bg: #F2EFEA;       /* linen */
   --brand-surface: #F2EFEA;
   --brand-text: #111827;
@@ -62,6 +85,17 @@
      which read too heavy at 2px. NOT for cards, dividers or text inputs —
      those keep --brand-border. */
   --brand-control-border: #8B8172;
+  /* The 5px frame around HeroCarousel's photo panel. DARK-MODE ONLY, by
+     Gautham's call (2026-08-20) — transparent here, green in the dark block.
+     It is a token rather than a `dark:` class because the theme is driven by
+     `data-theme` on <html>, not by prefers-color-scheme, so Tailwind's stock
+     `dark:` variant would follow the OS instead of the toggle.
+     ⚠️ The border stays 5px in BOTH themes so the panel's geometry — and the
+     photo crop inside it, since `aspect-[16/9]` sizes the border box — never
+     shifts when the theme flips. The panel pairs this with
+     `background-clip: padding-box`, without which its dark letterbox fill would
+     paint through the transparent frame and put a black border back. */
+  --brand-hero-frame: transparent;
   --brand-hint: #111827;   /* == --brand-text; see the token note above */
   --brand-muted: #9CA3AF;  /* placeholders + muted fills ONLY */
   /* Logo/wordmark tint — follows the brand green in BOTH themes (green in light,
@@ -94,6 +128,9 @@
      (#0F1A18), so controls read as controls without a heavy outline. Left at
      the nav-border value on purpose — the blending problem is light-only. */
   --brand-control-border: #33433F;
+  /* The hero photo frame — visible ONLY here. On the dark ground the panel
+     needs an edge; on linen it read as an unnecessary outline. See :root. */
+  --brand-hero-frame: var(--brand-green);
   --brand-hint: #F2EFEA;   /* brand white (linen) — deliberately the linen, not
                               --brand-text's #ECEAE4; Gautham asked for the brand
                               white shade specifically. */
@@ -121,6 +158,34 @@
   /* Default sans font for the whole app. Defined once in layout.tsx as --font-app.
      Any element using Tailwind's `font-sans` (or none) gets this. */
   --font-sans: var(--font-app);
+
+  /* The `band:` breakpoint is declared in the plain @theme block below — see the
+     note there. It cannot live in this `inline` block. */
+}
+
+/* ── Extra breakpoint: `band:` = 1400px ───────────────────────────────────────
+   Sits between xl (1280) and 2xl (1536), for `FeatureBand`'s seven-across row:
+   seven tiles need ~1400px to clear 180px each, xl is too early, and 2xl (1536)
+   would leave a 1440px laptop stacked.
+
+   ⚠️ MEASURED, NOT ASSUMED — a wider breakpoint does NOT automatically beat a
+   narrower one on the same element in this Tailwind v4 build. Both
+   `min-[1400px]:` (arbitrary) and `band:` (registered) are emitted BEFORE the
+   built-in screens, so `band:grid-cols-7 lg:grid-cols-4` renders FOUR columns at
+   1600px: both rules match and `lg` is later in the stylesheet, so it wins. This
+   shipped once and looked like a layout bug rather than a CSS-order one.
+
+   ⚠️ So pair it with `max-band:` rather than relying on order: bound every
+   narrower step to `max-band:` (`max-band:lg:grid-cols-4 band:grid-cols-7`) and
+   the two ranges are DISJOINT, which makes source order irrelevant. That is what
+   `FeatureBand` does. Registering the breakpoint — instead of writing
+   `min-[1400px]:` / `max-[1399px]:` — is what makes both halves of that pair
+   come from one number.
+
+   Check the emitted order in the compiled CSS before trusting any variant to
+   beat another; do not assume this build sorts by width. */
+@theme {
+  --breakpoint-band: 1400px;
 }
 
 body {
@@ -242,6 +307,22 @@ optgroup {
 @media (prefers-reduced-motion: reduce) {
   .nf-aura, .nf-breathe, .nf-eye { animation: none !important; }
   .nf-aura { opacity: 0.15; }
+}
+
+/* ── Console table row ────────────────────────────────────────────────────────
+   A row in the organiser console washes green under the pointer — the app-wide
+   "green ground" hover, dialled down to the 8% tint the rooms list already uses
+   for its picked room. A row carries status pills and a progress bar, so a SOLID
+   green fill (what a card or a menu item takes) would swallow them.
+
+   It lives here rather than as a Tailwind `hover:bg-[…]` arbitrary value because
+   the fill is a `color-mix()`, which would need escaping inside a class name.
+   See TableRow in components/organizer/ConsoleUI.tsx. */
+.nf-console-row {
+  transition: background-color 150ms ease-out;
+}
+.nf-console-row:hover {
+  background-color: color-mix(in srgb, var(--brand-green) 8%, transparent);
 }
 
 /* ── Selectable chip (filter chips, format toggles) ───────────────────────────

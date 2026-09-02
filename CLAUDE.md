@@ -12,6 +12,7 @@
 > | *What meaningfully changed* — one short line per feature, decision, or revert | **`CHANGELOG.md`** (appended) |
 > | *Specs for what's left to build*, and what's blocked on a decision | **`TODO.md`** |
 > | *Why the design is the way it is* — measurements, rejected alternatives | **`DESIGN_NOTES.md`** |
+> | *The gotcha for one component* — the thing you'd get wrong without being told | **`COMPONENTS.md`** (read a row, not the file) |
 >
 > Before you add a line here, check it against the code — see *Keeping this file true* at the end.
 
@@ -25,11 +26,12 @@
 
 - Before starting any task, identify the exact files needed. Open **only** those files.
 - Do **not** explore the full project structure unless explicitly asked.
-- Do **not** read `node_modules`, `.next`, `.venv`, `__pycache__`, or any build/cache directory.
+- Do **not** read `node_modules`, `.next`, `.venv`, `__pycache__`, or any build/cache directory. **One exception, and it is narrow:** `node_modules/next/dist/docs/` when you are about to use a Next.js API and are unsure of its current shape — this is Next 16 and training data goes stale. **Grep for the one file; never browse the tree.** Conditions in `apps/web/AGENTS.md`.
 - Do **not** re-read files you have already read in this session.
 - If a task touches only one component, open only that component file.
-- **After any TypeScript change**, run `pnpm --filter @eventmind/web type-check`. Do not report a task done if it fails.
-- **For UI changes, run the dev server and verify visually.** Type-checking does not catch visual bugs.
+- **After any TypeScript change**, run `pnpm --filter @eventmind/web type-check`. Do not report a task done if it fails. ⚠️ **The ONE exception is an edit the compiler cannot see** — copy inside JSX, a `--brand-*` value in `globals.css`, a Tailwind class string, a comment, a markdown doc. **A prop, an import, a type, a signature, a conditional, or a file being created / renamed / deleted is NOT that** — run it. **Unsure? Run it.** The check costs seconds; skipping it wrongly costs a bug reported as done.
+- **`pnpm lint` is CONDITIONAL, type-check is not.** Run it only when the change can trip a rule it owns — a hook, `<img>` vs `next/image`, `<a>` vs `next/link`, an unused import, `Date.now()` in a component body. It is slower than type-check and finds nothing on a padding tweak.
+- **For UI changes, run the dev server and verify visually.** Type-checking does not catch visual bugs. **Scope it to what actually changed:** geometry, a new component, or anything responsive needs real eyes (plus the 1024px re-measure). A colour token or a copy swap does not — **unless it changes a width**, and a longer label always does.
 - **If you change something this file describes, fix the description in the same task** — not at the end, not next session. **A stale instruction is worse than no instruction:** it doesn't just waste tokens, it actively produces wrong work.
 - After completing a task, list only the files you modified.
 - **Before building anything complex, state your interpretation and confirm before proceeding.** Especially when an image or asset is uploaded (do not hand-draw or reconstruct it — ask how to use it), when the request is ambiguous, or when the implementation could go several ways. A brief "Here's what I'm planning — does that sound right?" prevents wasted effort.
@@ -94,14 +96,21 @@ Get-ChildItem -Recurse -File | Where-Object {
 
 Don't duplicate these; read the source when you need the detail.
 
+> ⚠️ **Read the SECTION, not the file.** `TODO.md` and `COMPONENTS.md` are each **larger than this
+> whole file**, and `DESIGN_NOTES.md` is about its size — opening one of them whole costs more
+> context than every rule you are working from, to answer one question. **All of them are greppable
+> by heading; the third column says how.** A whole-file read of any of these is a mistake, not
+> thoroughness. **Grep first, then read only the lines you matched.**
+
 **Working docs — these are part of doing the work:**
 
-| Document | Read it when |
-|---|---|
-| `STATUS.md` | **First, when picking the project up.** What's shipped, partial, not started, and known-wrong-on-purpose. |
-| `TODO.md` | You're about to pick up unbuilt work, or you've hit something that looks broken — check whether it's already logged and whether it's blocked on Gautham. |
-| `DESIGN_NOTES.md` | **Before proposing any layout or visual change to a shared surface.** Holds the measurements behind the rules and the alternatives already built and rejected. |
-| `CHANGELOG.md` | You need to know *when* or *why* something changed. Rarely needed to do work. |
+| Document | Read it when | How to read it |
+|---|---|---|
+| `STATUS.md` | **First, when picking the project up.** What's shipped, partial, not started, and known-wrong-on-purpose. | Five headings — `## Shipped`, `## In progress / partial`, `## Not started`, `## Known-wrong…`, `## Dead code…`. Read the one that answers your question; the whole file only on a genuine cold start. |
+| `TODO.md` | You're about to pick up unbuilt work, or you've hit something that looks broken — check whether it's already logged and whether it's blocked on Gautham. | **Read the index table at the top, then grep `^## N\.` for the one section.** A `§19.12` reference means the heading `## 19.` — sections are numbered and self-contained, with `b`/`c` suffixes (`## 3b.`). |
+| `COMPONENTS.md` | **Before you touch a component.** What each file is, and the one thing you'd get wrong without being told. | **Grep the filename** — a single table row is the whole answer. The *Component Registry* index below tells you whether a row exists before you go looking. |
+| `DESIGN_NOTES.md` | **Before proposing any layout or visual change to a shared surface.** The measurements behind the rules, and the alternatives already built and rejected. | **Grep `^## N\.` for the § you were sent to.** Sections are numbered and self-contained; a pointer here always names one. |
+| `CHANGELOG.md` | You need to know *when* or *why* something changed. Rarely needed to do work. | Newest first under `## YYYY-MM-DD`. Read the top few entries, or grep the feature name. **Never read it whole** — it only grows. |
 
 **Reference docs in `Eventmind_files/` — these exist, and that's all you need to know by default:**
 
@@ -258,8 +267,14 @@ NEXT_PUBLIC_DATA_MODE=real    # live backend via the gateway (default when unset
 ```
 
 - Implemented in `lib/data-source.ts`: pages import `eventsSource` / `communitiesSource` / `communitySource` instead of the `*Api` objects. Same method shapes and `{ data }` envelope, so call sites are identical.
-- **Only read paths switch.** Mutations (create, pay) always hit the real API.
+- **Read paths all switch. Of the WRITES, only the event ones do** — `create`, `update` and `duplicate` — because each can carry the organiser-authored extras and dummy mode is the only place those survive. **Payment always hits the real API**: there is no honest fixture for taking someone's money.
+  - **`update()`** is the organiser's edit/cancel/publish. An edit writes a row that must already exist, and in dummy mode it does not, so a PATCH would 404 on every fixture id. The dummy branch mutates the fixture object in module memory instead: **an edit made in dummy mode survives navigation and dies on reload.** That is the honest behaviour for a fixture — do not add a localStorage layer to make it look persistent. ⚠️ **It returns a shallow COPY of the fixture, and the spread is load-bearing** — every caller pipes the result into `queryClient.setQueryData(["event", id], …)`, and the cache is already holding that same object, so returning it unchanged writes a referentially-equal value, React Query treats it as no change, and **nothing re-renders even though the write succeeded.** Publish, cancel, edit and the status select all had this. **Any new dummy-mode mutation that mutates in place must return a fresh reference too.** `ownsEvent()` lives beside it for the same reason: who owns an event is answered differently in each mode.
+  - **`create()`** backs `/organizer/create`. Real mode POSTs; dummy mode pushes onto `dummyMyEvents`, same module-memory lifetime as an edit — which is what lets the create form's agenda and FAQ editors actually work in the one mode where they can.
+  - ⚠️ **BOTH `create()` and `update()` STRIP the five extras in real mode** (`EXTRA_KEYS` — agenda, announcements, faq, offer_name, image_url). There is no column for any of them, so Pydantic would drop them anyway; stripping makes that visible in one place instead of silent in the network tab. It is the **second** lock — the first is that every authoring control is disabled off `EXTRAS_ARE_LOCAL`. **When the columns land, delete BOTH strips AND `EXTRA_KEYS`**, or they will quietly discard the fields they were added to protect.
+  - **`eventsSource.duplicate()` is also a create** — `POST /event/` in real mode, a push onto `dummyMyEvents` in dummy. The copy is **always a draft at `tickets_sold: 0`** and drops the original's announcements; see `DuplicateEventModal`.
 - Fixtures in `lib/fixtures/` are API-shaped, with dates computed relative to now so badges stay live. In dummy mode geo/city/price/date filters are ignored so the UI is always populated; only online-vs-offline, a loose text query, and `limit` are honoured. The home page also skips Ticketmaster auto-ingest.
+- ⚠️ **There is ONE set of dummy events, seen from two sides.** `lib/fixtures/events.ts` exports three arrays: `dummyEvents` + `dummyOnlineEvents` (other organisers' — discoverable and nothing more) and **`dummyMyEvents`**, the eight events the signed-in developer *owns*. The organiser console draws that third array and nothing else, and **`lib/fixtures/organizer.ts` derives every console figure from it** — rooms, earnings, roll-ups, the hero. **Never hand-write a title or a total in `organizer.ts`**; that is exactly how the dashboard ended up describing five events the rest of the app had never heard of. Details in both files' headers.
+- ⚠️ **`dummyEventSearch` returns only published, not-yet-finished events**, matching the real endpoint's `status: "published"` default. `dummyMyEvents` deliberately contains a draft and three finished events so the console's Drafts and Past tabs are populated — they must never reach discovery. `eventsSource.get()` still resolves them by id, so the console's "Manage" link opens a real event page for every row.
 - **`NEXT_PUBLIC_*` vars are inlined at dev-server start — restart the server after changing the mode.**
 
 ---
@@ -292,81 +307,112 @@ can be reused by the planned mobile app.
 
 ## Component Registry
 
-One line per file: what it is, plus only the **non-obvious gotcha** — the thing you'd get wrong
-without being told. Rationale and measurements live in `DESIGN_NOTES.md`. Add a component when you
-create one; fix the gotcha when it changes. **Keep entries short.**
+**The registry itself is `COMPONENTS.md`** — one row per file carrying the **gotcha** you would get
+wrong without being told. **Read the row for a file before you touch that file. Do not read the
+whole document as a matter of course** — it is long on purpose, and most of it is irrelevant to any
+one task. Below is the index only: what exists, and what it is for.
 
-> ⚠️ **Communities are PARKED for Phase 2 (2026-08-14) — parked, NOT dead. Do not delete any of it.**
-> `CommunityCarousel`, `CommunityJoinCard`, `CommunityEventsRail`, `CommunityReviews` and
-> `SimilarCommunities` — plus `lib/community-server.ts`, `lib/community-events.ts`,
-> `lib/fixtures/communities.ts`, `toCommunityItem` in `lib/card-adapters.ts`, the community sources
-> in `lib/data-source.ts`, and `packages/api/src/communities.ts` + `community.ts` — are all intact
-> and still type-checked, but **unreachable at runtime**: `/community/*` redirects to home.
->
-> Most of them still have live importers (the `app/community/[slug]/*` files were never edited), so
-> the compiler will not flag them. **`CommunityCarousel.tsx` is the exception** — both its page
-> importers are commented out, so its components look unreferenced to tooling. It carries a
-> do-not-delete header of its own; heed it.
->
-> Do not add a call site back either: the requirement is that a user never encounters the word
-> "community" anywhere. Their rows below describe how they behave once restored. Restore checklist:
-> `TODO.md` §12.
+⚠️ **Before you build any UI, look for it in this index first.** If a share button, heart, date row,
+price chip, badge, rail, dialog chassis, form field or empty state already exists, **import it** — a
+second version is a bug even when it looks fine on its own. **One control = one component; if it
+must look different somewhere, add a prop — do not fork the file.**
+
+⚠️ **Communities are PARKED for Phase 2 (2026-08-14) — parked, NOT dead.** Every community-shaped
+file is intact and still type-checked, but unreachable at runtime: `/community/*` redirects home.
+**Do not delete any of it as dead code, and do not add a call site back** — the requirement is that
+a user never encounters the word "community" anywhere. The full file list, the `CommunityCarousel`
+trap (its importers are commented out, so tooling reads it as unreferenced) and the restore
+checklist: `COMPONENTS.md` and `TODO.md` §12.
 
 ### The shared systems — import these, never re-implement
 
-| File | Purpose | Gotcha |
-|---|---|---|
-| `components/EventIcons.tsx` | **The** glyph set — every icon in the app | **Never draw another calendar/clock/pin.** Filled set, tuned for 14px. Glyphs are named for what they DRAW, not the tag they serve. Colour is `currentColor` by design — pass `color` only where it differs from surrounding text. No heart here: `EventActions` owns the heart. See `DESIGN_NOTES.md` §4. |
-| `components/EventActions.tsx` | **The** round controls: share / wishlist / back / arrow | **Never hand-roll another.** Kind-agnostic despite the `Event*` prefix — pass `kind` (`'event'` \| `'community'`), which drives the share URL, wishlist record and aria-label. `item: ActionItem` is a structural shape both `CarouselEvent` and `CommunityItem` satisfy. Props: `labelSide`, `size` (`'sm'` 32px cards \| `'lg'` 48px standalone). **Need a variant? Add a prop — do not fork the file.** |
-| `components/EventBadges.tsx` | **The** tags — status tags (`EventBadge`, `EventBadges`, `BADGE_CONFIG`) and the category chip (`CategoryBadge`, `categoryStyle`) | **Never re-declare `BADGE_CONFIG` or pick your own category colour.** Serves events AND communities (they sat in one mixed grid on `/explore?view=both`, until communities were parked for Phase 2 — the shared-tag rule still holds for when they return). Communities carry a single `badgeType`, events an array — wrap the single one, don't add a second component. `MAX_BADGES` caps status tags at 3 **at the render point** — do not cap at a call site or slice in `toCarouselEvent` (the filter tabs read `badgeTypes` too). Exports `TAG_SHAPE` for non-tag chips that must match the silhouette. `CategoryBadge` takes `size` (`'sm'` default, every card and hero \| `'lg'`, the scaled-up chip `CategoryGrid` overlays on its tiles) and `trailing` (a node rendered inside the chip after the label — `CategoryGrid`'s explore arrow) — **add a prop here rather than forking the chip.** The `'lg'` type size is held to a measurement; see `DESIGN_NOTES.md` §5 before changing it. ⚠️ **Tag labels currently fail WCAG AA — `TAG_LABEL` is the one-line switch to the accessible version.** See `DESIGN_NOTES.md` §3. |
-| `components/EventBadges.tsx` → `CardTagRow` | **The** chip overlay for a card | **Use this on any card — never hand-place `CategoryBadge` + `EventBadges` in a card overlay.** Uses `flex-wrap-reverse` so overflow pushes up instead of clipping. The 3-tag cap counts **status tags only** — the category chip shares the bottom row with two of them by design. Heroes are unaffected and use the primitives directly. |
-| `lib/currency.ts` | **The** price formatter — `formatPrice`, `formatEventPrice`, `currencySymbol`, `paymentCurrency` | **Never hand-write a currency symbol in a component** — that is exactly how cards ended up showing `₹` while every other surface showed `$`. **Always pass the event's `currency`**; omitting it falls back to INR, which is wrong for Ticketmaster rows carrying real USD/GBP/EUR. `freeLabel` defaults to `"Free"` at price 0 (pass `null` where 0 must render as an amount); `decimals` defaults to false — **checkout opts in**, because rounded parts wouldn't reconcile against the total. No DOM access, so the server-rendered share images can import it. The currency **list** lives in `packages/types` next to `EVENT_FORMATS`. |
-| `components/DetailCard.tsx` | **The** right-column card on BOTH detail pages — `DetailCardShell`, `DetailCardHeader`, `DetailCardBody`, `DetailLine`, `DetailPeopleChip`, `DetailAccentChip`, `DetailDivider`, `DetailPriceRow`, `DetailCTA`, plus `DetailStickyBar` and the `DETAIL_ICON` size | **Never hand-roll a second booking/join card** — `/event/[id]`'s `BookingCard` and `CommunityJoinCard` are both thin copy-and-data wrappers over these. They used to be one private copy inside the event page, which is exactly why the community page had no card at all. **`verified` on `DetailCardHeader` draws a shield and is a TRUST CLAIM** — pass it only from a real `verification_status === "verified"`, never for decoration (the event page currently passes it on a hardcoded string; that's `TODO.md` §1, not a licence to copy). `DetailStickyBar` takes `gutters` as a prop so this file needs no layout import. **Need a variant? Add a prop — do not fork.** |
-| `components/Rail.tsx` | **The** full-bleed horizontal card rail — `Rail`, `RailToggle`, `RAIL_ITEM`, `RAIL_CARD_BASIS`, `RAIL_GAP` | **Never build another rail.** Serves "Similar events", "Events in this community" and "Similar communities". ⚠️ **DELIBERATELY FULL-BLEED** — a rail must be a sibling *after* the page's capped column, carrying home's `GUTTERS`; inside the cap four cards shrink to ~311px. `RAIL_CARD_BASIS` is **percentages, never `100vw`** (vw includes the scrollbar and double-counts padding — that clipped the fourth card). The rail's vertical padding is **clip room, not spacing** — `-mt-6 -mb-10` cancel it exactly; delete it and the hover border clips. **Do not pin a card height or width.** Full reasoning: `DESIGN_NOTES.md` §2 and §6. `RailToggle` is the segmented Previous/Upcoming switch — 2px border on **both** states so it can't resize on click. |
-| `components/Reviews.tsx` | **The** "Attendee Reviews" block — `ReviewsSection`, `ReviewCard` | Used by `/event/[id]` and (via `CommunityReviews`) `/community/[slug]`. Its rounded rating star is **not** `EventIcons.StarIcon` — that one is the sharp 5-point "Recommended" tag glyph. Two concepts, two shapes; don't unify them. Pass `average`/`count` only when there's something to average — the block hides the aggregate rather than showing `0.0`. |
-| `lib/layout.ts` | `GUTTERS` — the standard horizontal padding | **Import it; never hand-write `px-4 sm:px-6 lg:px-12`.** That's how eleven pages ended up on a flat `px-12` while the navbar stepped down correctly. |
-| `lib/card-adapters.ts` | API shape → card shape | `toCarouselEvent`, `toCommunityItem`. **This is the single place that decides which status tags an event gets** — a `BADGE_CONFIG` entry nothing emits here is dead (see `TODO.md` §2). Placeholder images are `picsum.photos/seed/<id>`. |
-| `lib/community-events.ts` | `splitCommunityEvents()` — a community's events → `{ upcoming, previous }` | "Previous" means **finished**, so it reads `end_date` and only falls back to `start_date` — a multi-day festival stays Upcoming while it's still running. It lives in `lib/` (not in the page) because calling `Date.now()` in a component body trips the `react-hooks/purity` lint rule. |
-| `lib/share-event.ts` | Share pipeline for both kinds | **`shareItem(kind, item)` is the entry point** — `kind` doubles as the URL segment, so `/event/…` and `/community/…` are derived, never hardcoded. `shareEvent()` is a back-compat wrapper. **Adding a third shareable type? Extend `ShareKind` and add the three route files — do not write a second share flow.** |
+| File | What it is |
+|---|---|
+| `components/EventIcons.tsx` | **The** glyph set — every icon in the app |
+| `components/EventActions.tsx` | **The** round controls — share / wishlist / back / arrow, plus the organiser's edit / duplicate / cancel |
+| `components/ModalShell.tsx` | **The** dialog chassis — overlay, panel, title row, close, Escape, click-outside, portal |
+| `components/FormControls.tsx` | **The** form primitives — `FormField` and `inputCls` |
+| `components/EventBadges.tsx` | **The** tags — status tags, the category chip, and `CardTagRow` (the card's chip overlay) |
+| `components/DetailCard.tsx` | **The** right-column card on both detail pages, plus `DetailStickyBar` |
+| `components/Rail.tsx` | **The** full-bleed horizontal card rail |
+| `components/Reviews.tsx` | **The** "Attendee Reviews" block |
+| `lib/currency.ts` | **The** price formatter — never hand-write a currency symbol |
+| `lib/csv.ts` | **The** CSV download — never hand-roll `values.join(",")` |
+| `lib/dev-flags.ts` | **The** developer escape hatches — every one gated on `NODE_ENV === "development"` **and** an env var |
+| `lib/layout.ts` | `GUTTERS` — **the** standard horizontal padding |
+| `lib/share-event.ts` | **The** share pipeline, both kinds |
+| `lib/card-adapters.ts` | API shape → card shape; **the** one place status tags are decided, and `cardImageUrl` |
+| `lib/event-extras.ts` | The five organiser-authored extras and their readers — **no backend column for any of them** |
+| `lib/event-options.ts` | **The** choice lists behind the event form — category, format, language, audience — shared by create and edit |
+| `lib/community-events.ts` | `splitCommunityEvents()` — a community's events → upcoming / previous |
 
 ### Cards, grids and rails
 
-| File | Purpose | Gotcha |
-|---|---|---|
-| `components/EventsCarousel.tsx` | Main events grid + online section | Exports `CarouselEvent` **and `EventCardItem`** — the card actually used by home, `/explore` and `/community/[slug]` (**not** `EventCard.tsx`). Also exports `SkeletonCard`. Meta row is icon-delimited and **packed left**; `OnlineEventCard` carries an identical row (third glyph is `VideoCallIcon`, not the pin) — **change both together or they drift.** ⚠️ The row truncates the venue at `xl:grid-cols-4` (`TODO.md` §6), and its filter tabs are pills in violation of the shape rule (`TODO.md` §8). Two layout alternatives are closed — see `DESIGN_NOTES.md` §1. |
-| `components/CommunityCarousel.tsx` | Community cards on home | ⚠️ **PARKED for Phase 2 (2026-08-14) — no call sites.** Communities were cut from the MVP; the file is intact and still type-checked, but home, `/explore` and the navbar no longer reach it. **Do not delete it as dead code, and do not re-add a call site** — the rule is that users must not see the word "community" anywhere. Restore checklist: `TODO.md` §12. The rest of this row applies once it is back. Exports `CommunityItem` **and `CommunityCardItem`**. **Owns no chrome of its own** — tags from `EventBadges`, controls from `EventActions` with `kind="community"`. It used to keep private copies of `BADGE_CONFIG`, `ShareButton` and `HeartButton`, and that is exactly how events and communities drifted. **Do not re-add them.** |
-| `components/SimilarEvents.tsx` | "Similar events" rail on `/event/[id]` | Now just a data source for `Rail` — **the full-bleed / card-width / clip-room rules and measurements live in `components/Rail.tsx`; read that row before changing layout here.** What's this file's own: it queries the **viewed event's own coordinates**, not the city picker, and splits nearby-vs-online the way home does. Renders `null` (divider included) when there is nothing to suggest. Full reasoning: `DESIGN_NOTES.md` §2 and §6. |
-| `components/CommunityEventsRail.tsx` | "Events in this community" rail on `/community/[slug]` — the counterpart to "Similar events" | One rail, two tabs (Upcoming / Previous) via `RailToggle`. **It fetches nothing** — the page splits the events once (`lib/community-events.ts`) because the sidebar card and the reviews block need the same pieces. The active tab is **derived, not synced**: `picked ?? (no upcoming ? "previous" : "upcoming")`, so a community whose events have all happened doesn't open on an empty tab, while an explicit click still wins. Renders `null` only when BOTH lists are empty; an empty *tab* keeps the section and explains itself. |
-| `components/SimilarCommunities.tsx` | "Similar communities" rail on `/community/[slug]` | Communities have no coordinates, so "similar" is **same category, then same city** — not a radius search like `SimilarEvents`. Ordering is the backend's (`member_count desc`), the only relevance signal the community service offers. |
-| `components/CommunityJoinCard.tsx` | The sidebar card on `/community/[slug]` | Chrome from `DetailCard.tsx` — see that row. **This one does a REAL organiser lookup** (`organizerApi` on `community.organizer_id`), unlike the event page's hardcoded header, and the shield only appears on a genuine `verification_status === "verified"`. When there's no organiser profile it falls back to the **community's own name** — a community IS the organising entity, so that's true, not a placeholder. **The Join CTA is intentionally inert** — see `TODO.md` §3b; do not wire it to a device-local flag. |
-| `components/CommunityReviews.tsx` | Attendee reviews on `/community/[slug]` | ⚠️ **A community has no reviews of its own** — this fans `useQueries` over its most recent past events (capped at 6, one request each) and averages the result. **Never relabel that aggregate as a community rating**; the subtitle must keep saying where it came from. The review service 404s for an event with no reviews — that's a normal answer here, hence `retry: false`. |
-| `components/CategoryGrid.tsx` | "Browse by category" rail above the footer | A tile **borrows the event card's chassis but has no body** — it is a bare `aspect-video` photo carrying one `CategoryBadge size="lg"` bottom-**right**, with the "explore" arrow **inside that chip after the name** (via the `trailing` prop) rather than as a separate button. If `EventCardItem`'s hover or radius changes, change it here too. **No colour wash and no body — both were built and removed; do not put them back.** ⚠️ **The arrow is `aria-hidden` decoration, never a control** — the tile is already a link to that destination, so a nested control would be a second tab stop doing one job. **The `lg` chip size is pinned by a measurement** (the longest name clips at 20px once the arrow shares the row) — see `DESIGN_NOTES.md` §5 before enlarging either. Two rows, `grid-flow-col`, scrolled horizontally. Same clip-room fix as `SimilarEvents`. **Never hardcode a tile colour** — it's the category's own accent from `categoryStyle()`; the chip takes it raw, the hover border takes it through `liftAccent()` in dark mode only (a raw accent on the dark page is invisible). Tiles are the **11 categories `/explore` filters on, in its order** — keep this list and `CATEGORIES` in `app/explore/page.tsx` in step. **No event count on a tile, and do not fake one.** See `DESIGN_NOTES.md` §5. |
-| `components/HeroCarousel.tsx` | Split hero on home — copy left, image right | ⚠️ **Communities are PARKED for Phase 2 (2026-08-14)** — `MODES.communities` now points at routes that redirect home, and the events mode's second subcopy line (which named communities) is commented out, so `subcopy` is temporarily `SubLine[]` rather than the `[SubLine, SubLine]` tuple. **Do not restore the Events/Communities toggle on its own** — it is the only thing that reaches a feature users are not meant to know exists; see `TODO.md` §12. **⚠️ The hero is the ONE surface not capped at the 1400px page column** — the grid spans the full viewport inside `GUTTERS` and splits 50/50, so the copy column is the page's left half. Do not "restore" a `maxWidth`. The copy block inside it is `max-w-[600px] mx-auto` (centred block, left-aligned lines). **600px and the headline’s `clamp(26px, calc(4.0vw - 6px), 46px)` are measurements tied to the current headline copy** — the headline is a three-turn spoken exchange and every turn must hold on ONE line; the binding turn is #2, not #1. Reword it and both numbers are wrong, so **re-run the width sweep after any change here** (`DESIGN_NOTES.md` §9). The body’s **"About N options" is the LIVE event count**, not copy: `GET /event/count` → `eventsSource.count()` → React Query, rounded to the nearest 10. Below 10 it renders **no number at all** rather than "0 options" — same path used while loading or on failure, so **never hardcode a figure into `SubLine.text`.** **The panel carries a `5px solid var(--brand-green)` frame** — Gautham's explicit call, decoration on a photo, **not** a control, so the 2px `--brand-control-border` rule does not apply and this is not a stray border to sweep. **The image panel is `aspect-[16/9]` at every width because that is the native aspect of every photo in `public/hero/` — never pin a height here.** A panel that disagrees with its source is exactly how much `object-cover` crops; the old `lg:h-[min(82vh,820px)]` made it near-square and ate ~40% of each photo's width. **Two modes (Events / Communities); the toggle swaps BOTH columns** and is local state, not a link — but **four blocks are commented out (parked, not dead — do not delete):** the toggle, the Explore/Publish CTA pair, the per-slide CTA on the photo, and the terracotta eyebrow. So `mode` is pinned to `"events"`, `MODES.communities` is unreachable, and the panel carries only the photo + the (now centered) dots. **Do not prune `Slide.href` or the MODES entries as unused** — they feed the parked CTA, and `label` is still the dots' `aria-label`. `MODES` is the single source. `SLIDE_COUNT` assumes both modes have the same slide count — **add a slide to both or the index maths breaks.** The two modes filter differently and must not be copy-pasted onto each other. Uses `<img>`, not `next/image`, because the wipe needs `clip-path`. Three layout arrangements are closed — see `DESIGN_NOTES.md` §1 and §9. |
-| `components/EventCard.tsx` | ⚠️ **DEAD — nothing imports it** | Kept only to avoid an unrequested deletion. Carries `data-keep-type` for its intentional sub-15px type. See `TODO.md` §10. |
-| `components/ShareButton.tsx` | ⚠️ **Effectively dead** — only importer is `EventCard.tsx` | Use `EventActions.tsx` instead. |
+| File | What it is |
+|---|---|
+| `components/EventsCarousel.tsx` | Main events grid + online section; exports `EventCardItem`, the card home / `/explore` actually use |
+| `components/CategoryGrid.tsx` | "Browse by category" rail above the footer |
+| `components/FeatureBand.tsx` | "Why NewFind" — participant tiles left, organiser tiles right |
+| `components/HeroCarousel.tsx` | Split hero on home — copy left, image right |
+| `components/SimilarEvents.tsx` | "Similar events" rail on `/event/[id]` |
+| `components/CommunityCarousel.tsx` | Community cards on home — ⚠️ **parked, no call sites** |
+| `components/CommunityEventsRail.tsx` | "Events in this community" rail — ⚠️ **parked** |
+| `components/SimilarCommunities.tsx` | "Similar communities" rail — ⚠️ **parked** |
+| `components/CommunityJoinCard.tsx` | The sidebar card on `/community/[slug]` — ⚠️ **parked** |
+| `components/CommunityReviews.tsx` | Attendee reviews on `/community/[slug]` — ⚠️ **parked** |
+| `components/EventCard.tsx` | ⚠️ **DEAD — nothing imports it** (`TODO.md` §10) |
+| `components/ShareButton.tsx` | ⚠️ **Effectively dead** — use `EventActions.tsx` |
 
 ### Chrome, chat and shared UI
 
-| File | Purpose | Gotcha |
-|---|---|---|
-| `components/navbar/Navbar.tsx` | Sticky top nav | Desktop on `lg+`, hamburger below. **⚠️ If you widen anything in the desktop row — a nav item, a longer label, a bigger logo — re-measure at exactly 1024px.** The search box (`w-[250px] xl:w-[410px]`) is the only elastic element and absorbs the difference; it was previously 1135px wide at `lg`, putting a horizontal scrollbar on *every page in the app* from 1024 to ~1150px. Both numbers were narrowed on 2026-08-14 and sit **below** the pair that fixed that bug, so the fit is safe by construction. **Narrowing is always safe; widening either number or adding a nav item is what needs the 1024px re-measure.** Chat button sits left of the bell (authed only) and turns green + terracotta dot on unread. Organizer status via `organizerApi.get()` (5-min React Query cache). |
-| `components/ChatPresence.tsx` | **Invisible** app-wide listener (mounted once in `layout.tsx`) that lights the navbar chat glow | ⚠️ **FRONTEND-ONLY MVP.** Opens one WebSocket per room while the app is open; cannot detect anything received while the app is closed, and the state is not survivable. Replace it when the chat backend persists messages — see `TODO.md` §3. |
-| `components/EventChatWidget.tsx` | AI chat widget on `/event/[id]` | Floating launcher is **terracotta**, not green, so it doesn't compete with the green CTAs. Panel internals stay green. ⚠️ It overlaps the fourth Similar-events card at every width — `TODO.md` §7. |
-| `components/CityPicker.tsx` | City selector | Uses `useLocationStore`. `CITIES[0]` is the Online pseudo-city — use `isOnlineCity()`. |
-| `components/ShareModal.tsx` | Desktop fallback when the native share sheet is unavailable | **Portalled to `<body>` via `createPortal` — do not remove.** It opens from inside cards and heroes that are `overflow-hidden` and apply a `transform` on hover; a transformed ancestor becomes the containing block for `position: fixed`, so rendering in place pins the overlay inside the card and clips it away. |
-| `components/Footer.tsx` | Site footer | Deep-green block, **intentionally not themed**. |
-| `components/brand/*` | Official logo, wordmark, lockup, loader | Inline SVG so they tint via `currentColor`; colour is driven by the theme-aware `--brand-logo`. Built from `eventmind/logo_and_wordmark/`. Loader keyframes live in `globals.css` and respect `prefers-reduced-motion`. |
+| File | What it is |
+|---|---|
+| `components/navbar/Navbar.tsx` | Sticky top nav, 72px — split by audience (Participants / Organisers) |
+| `components/ChatPresence.tsx` | Invisible app-wide listener that lights the navbar chat glow |
+| `components/EventChatWidget.tsx` | AI chat widget on `/event/[id]` |
+| `components/CityPicker.tsx` | City selector — `CITIES[0]` is the Online pseudo-city |
+| `components/ShareModal.tsx` | Desktop fallback when the native share sheet is unavailable |
+| `components/Footer.tsx` | Site footer — **intentionally not themed** |
+| `components/brand/*` | Official logo, wordmark, lockup, loader |
+
+### The organiser console (`/organizer`)
+
+Four sections under one shell — Dashboard, Events, Attendees, Earnings — see `TODO.md` §19 for what
+is real and what waits on a backend. **Two sections were removed on 2026-09-01 and neither comes
+back without asking:** *Settings* (its payment terms are now a card at the foot of Earnings; its
+other three groups are gone) and *Event rooms* (attendee conversation belongs to the chat surfaces,
+and the organiser side of that is the backend's job — `TODO.md` §19.1).
+
+| File | What it is |
+|---|---|
+| `app/organizer/(console)/layout.tsx` | The console shell: rail, page header, **both** auth gates |
+| `components/organizer/ConsoleUI.tsx` | **Every shape the four sections share** — card, stat tile, tabs, pill, table shell, empty states |
+| `components/organizer/ConsoleSidebar.tsx` | The section nav — one list, two shapes |
+| `components/organizer/ConsoleIcons.tsx` | Console chrome glyphs — nav, actions, pagination |
+| `components/organizer/useOrganiser.ts` | Who is running the console and whether they may be here |
+| `lib/organizer-rows.ts` | `Event` → the console row, plus the Events page's filter and sort |
+| `lib/fixtures/organizer.ts` | Dummy console data — **derived from `dummyMyEvents`, never hand-written** |
+| `lib/use-today.ts` | Today's date + greeting for the console header |
+| `components/organizer/OrganiserViewToggle.tsx` | Organiser view ⇄ participant preview, in the hero's control row |
+| `components/organizer/OrganiserEventCard.tsx` | The right-column card an organiser gets **instead of** `BookingCard` |
+| `components/organizer/EventStatus.tsx` | The Draft / Live / Registration closed / Cancelled state — editable for the organiser, fixed for everyone else — and `lifecycleOf()` |
+| `components/organizer/EditEventModal.tsx` | "Edit details" — the organiser's edit dialog |
+| `components/organizer/ListEditor.tsx` | **One** repeating-row editor behind all three authored lists, plus their `SPEC` |
+| `components/organizer/EditListModal.tsx` | The dialog and the save wrapped around `ListEditor` |
+| `components/organizer/DuplicateEventModal.tsx` | "Duplicate event" — copy the plan into a fresh draft |
+| `components/organizer/PublishEventModal.tsx` | "Publish event" — the confirmation on a draft |
+| `components/organizer/CancelEventModal.tsx` | "Cancel event" — the confirmation |
+| `components/EventSections.tsx` | The three authored blocks in `/event/[id]`'s left column — **public**, the edit control is not |
 
 ### Sharing routes
 
-Both events and communities produce two branded graphics, generated server-side with `next/og`
-(no extra dependencies) from the item's own picture:
-
-- **Link unfurl** — `app/<kind>/[id|slug]/opengraph-image.tsx` (1200×630). `layout.tsx` is a server component whose only job is `generateMetadata()`; Next auto-wires the route into `og:image` / `twitter:image`, so the page itself stays a client component.
-- **Story card** — `app/<kind>/[id|slug]/story/route.tsx` (1080×1920 PNG), fetched by `lib/share-event.ts` and handed to `navigator.share`.
-- Helpers: `lib/event-media.ts`, `lib/event-server.ts`, `lib/community-server.ts`.
-- Only the copy differs between kinds: the community story eyebrow reads "JOIN THE COMMUNITY", its chip shows member count rather than price.
-- **Set `NEXT_PUBLIC_SITE_URL` in production** so absolute share URLs and `metadataBase` are correct (defaults to `http://localhost:3000`).
+Both kinds produce two branded graphics via `next/og`, no extra dependencies: a **link unfurl**
+(`app/<kind>/[id|slug]/opengraph-image.tsx`, 1200×630) and a **story card**
+(`.../story/route.tsx`, 1080×1920). Helpers: `lib/event-media.ts`, `lib/event-server.ts`,
+`lib/community-server.ts`. ⚠️ **`event-media.ts` also exports `HERO_SCRIM`** — the one definition of
+the hero-photo wash, shared by `/event/[id]`, `/community/[slug]` and the organiser dashboard panel.
+**Import it; do not paste a fourth gradient.** ⚠️ **Set `NEXT_PUBLIC_SITE_URL` in production.**
+Details and the client/server split: `COMPONENTS.md`.
 
 ---
 
@@ -400,7 +446,7 @@ hexes in components**, and do not restate the palette in this file — read `glo
 Tokens: `--brand-green`, `--brand-green-hover`, `--brand-on-green` (text/icons **on** a green fill),
 `--brand-bg` (page), `--brand-surface` (cards/navbar/inputs), `--brand-text`, `--brand-border`,
 `--brand-nav-border`, `--brand-control-border`, `--brand-hint`, `--brand-muted`,
-`--brand-terracotta` (+ `-hover`, `--brand-on-terracotta`), `--brand-logo`.
+`--brand-terracotta` (+ `-hover`, `--brand-on-terracotta`), `--brand-logo`, `--brand-hero-frame` (the hero photo's frame — green in dark, **transparent in light**, which is how that border is made dark-only).
 
 **Naming convention — what Gautham means:**
 - **"green" / "green shade"** → always `#184E4A` (`--brand-green`). Never another green, never Tailwind `green-*`.
@@ -443,6 +489,26 @@ and the loader call). Keep `variable: "--font-app"`. Nothing else touches.
 **Prominent copy above the floor:** page subtitle 18px; empty-state heading 18px with a 16px helper
 line. Follow this on new pages. See `DESIGN_NOTES.md` §8.
 
+### ⚠️ The type scale — one scale, whole app
+
+**The console had its own** until 2026-08-22 (everything at the 15px floor, plus 11px uppercase
+micro-labels), and that — more than any colour — is what made it read as a different product. It is
+now on the scale below, and **so is anything new.** Sizes come from `EventsCarousel`'s card and
+`/event/[id]`'s body; the console runs one step quieter where a table genuinely needs it.
+
+| Role | Size | Reference |
+|---|---|---|
+| Section / page heading | `clamp(…)` **extrabold**, `tracking-[-0.5px]` | `EventsCarousel`'s "Events in {city}"; the console `h1` |
+| Card or row title | **20px bold** | the event card's title; a console table row |
+| Big figure | **32px extrabold**, `-0.5px` | `StatTile`; the earnings hero goes to 44 |
+| Body, table cells | **17–18px** | card meta row 18px; console cells 17px |
+| Controls | buttons **18px bold**, filter tabs **20px semibold** | the card's "View details" CTA |
+| Labels, counts, sub-lines | **15px** — the floor | `MicroLabel`, `CountBadge` |
+
+**Do not add a `data-keep-type` to squeeze a label in.** If a label competes with its figure, the
+figure is too small — that is the mistake the console's 11px labels were compensating for. The only
+live opt-out left in the app is `EventCard.tsx` (dead code) and one comment in `FeatureBand`.
+
 ### Shape
 
 **⚠️ Every button, chip, toggle and filter control is a rounded rectangle. `rounded-full` is not a
@@ -450,6 +516,7 @@ button shape.** The reference is the category chip on the event card — `rounde
 exported as `TAG_SHAPE`.
 
 - **Small controls** (filter chips, category chips, date presets, segmented items): `rounded-lg`. Inside a bordered track, the track is `rounded-lg` and its items `rounded-md` so the inner radius nests.
+  - **⚠️ The FILTER TAB is the standing exception, and there are now three of them on one silhouette:** `EventsCarousel`'s two tab rows, the card's "View details" CTA, and the organiser console's `Tabs` + `FilterSelect` — all `rounded-xl` (Gautham, 2026-08-21 and 2026-08-22). **Move them together or not at all, and do not "correct" any of them to `rounded-lg`.**
 - **Standard buttons** (CTAs, form submits, search/city/sort controls): `rounded-xl` or `rounded-2xl`.
 - **The only legitimate `rounded-full` elements** are things that aren't buttons-with-labels: the round icon controls in `EventActions.tsx`, avatars, count badges, carousel dots, and a toggle switch's knob + track. **Do not add to this list without asking.**
 
@@ -460,13 +527,16 @@ exported as `TAG_SHAPE`.
 - **⚠️ Bump the ACTIVE state to 2px too.** Most of these swap to a green border when selected; if only the inactive state is 2px, **the control changes size when you click it.**
 - `--brand-border` is still correct for **non-controls**: card/panel borders, dividers, `border-t`/`border-b` rules, and form text inputs inside a card. **Do not sweep those to 2px.**
 - **⚠️ A CARD is not a control.** The `SeeAllTile` in the carousels sits in the same grid as the event cards and must look identical to them — `2px solid transparent` at rest, green on hover, the transparent border holding the space so it never resizes. It must read as a card, not as a big button.
+  - **⚠️ The `/event/[id]` HERO ROW is the one place the token itself changes** (Gautham, 2026-08-31): every control there — Back, wishlist, share, edit, duplicate, cancel, the status chip, the view toggle, Publish — wears `2px var(--brand-hint)` via `EventActions`' exported `HERO_EDGE`, so the edge is brand-black in light and brand-white in dark. `--brand-control-border` is a mid tone in both and reads as no edge at all over a photograph. **Approved and scoped to that row — do not sweep it onto outline controls elsewhere, and do not "correct" it back.** ⚠️ That edge also **greens under the pointer**, on every control in the row — the status chip and the view toggle's track included (`HERO_EDGE_HOVER`, and `hoverEdge` for the round ones, whose ring follows the glyph's tone and so goes *terracotta* on the destructive one).
+  - **Two standing exceptions**, both approved and both because a 1px `--brand-border` read as no border at all: `/explore`'s filter sidebar and `FeatureBand`'s cards carry `2px --brand-control-border` at rest. This is not licence to sweep card borders generally — a card that sits in a grid *beside event cards* still follows the `SeeAllTile` rule above.
 - **First choice is not to hand-write a border at all.** There is no shared Button component, which is why this treatment had to be applied in ~20 places across 12 files. If you add another outline control, **copy an existing one rather than inventing a third width.**
 
 Dark theme is deliberately not lifted — the blending problem is light-only. See `DESIGN_NOTES.md` §7.
 
 ### Hover, spacing, tone
 
-- **Hover:** background → green, text/icon → linen. Used throughout the navbar, dropdowns and cards. Maintain it for new interactive elements.
+- **Hover:** background → green, text/icon → linen. Used throughout the navbar, dropdowns and cards. Maintain it for new interactive elements. **One approved exception:** `FeatureBand`'s four **organiser** tiles hover **terracotta**, because each half of that band is skinned by one accent and terracotta is the organisers' (Gautham, 2026-08-19). Participant tiles still hover green. Do not sweep the organiser tiles back to green.
+  - **⚠️ A TABLE ROW takes an 8% green WASH, not the solid fill** (`.nf-console-row` in `globals.css`) — a row carries status pills and a progress bar, which a solid ground would swallow. Its controls still take the full rule. **The trap that made this necessary: an inline `style` colour BEATS a `hover:` rule**, so the console's every control was inert to the pointer until its tones moved to classes. Third time this has bitten — see also `FeatureBand`'s audience badge and `FilterSelect`'s menu items. **Colour anything that hovers with CLASSES.**
 - **Navbar** 72px tall. **Page content and navbar share the same horizontal padding** — import `GUTTERS`.
 - **Cards** `rounded-2xl`. **Buttons** `rounded-xl` / `rounded-2xl`.
 - **Copy:** conversational but professional. Avoid jargon, keep labels short — "Claim Free Ticket", not "Register for Free Event".
@@ -479,9 +549,11 @@ Dark theme is deliberately not lifted — the blending problem is light-only. Se
 flat `px-12`. **Re-run that sweep after any layout change — 1024px especially, where the navbar
 breaks first.**
 
+> ⚠️ **A wider breakpoint does NOT automatically beat a narrower one in this Tailwind v4 build.** Both arbitrary (`min-[1400px]:`) and custom registered (`band:`) media variants are emitted **before** the built-in screens, so `band:grid-cols-7 lg:grid-cols-4` on one element renders **four** columns at 1600px — both match, and `lg` is later in the stylesheet. **Fix by making the ranges disjoint, not by reordering the class string:** bound every narrower step with `max-band:` (`max-band:lg:grid-cols-4 band:grid-cols-7`). `FeatureBand` is the worked example, `--breakpoint-band: 1400px` is registered in `globals.css`, and the trap is written up beside it. This shipped once and read as a layout bug. **Verify in the compiled CSS — do not assume the sort order.**
+
 Standard patterns:
 
-- **Grids:** `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`.
+- **Grids:** `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4` — all built-in screens, which do sort by width among themselves; only mixing in a custom or arbitrary breakpoint hits the trap above.
 - **Horizontal padding:** import `GUTTERS`. Never hand-write the trio.
 - **Two-column bodies:** `grid-cols-1 lg:grid-cols-[Nfr_1fr]`, never a bare `gridTemplateColumns` — a hard `fr` ratio has no narrow layout, it just squeezes the sidebar until it overflows.
 - **Form rows:** `grid-cols-1 sm:grid-cols-N`. A bare `grid-cols-3` puts three ~100px cells on a phone.
@@ -506,25 +578,36 @@ Standard patterns:
 1. **(MANDATORY) Update `STATUS.md`** whenever something moves between shipped / partial / not started, or is reverted. **Rewrite the section in place — never append.** It describes the present only, so a stale entry there is a bug.
 2. **Add to `CHANGELOG.md` only for a meaningful change** — a feature landing, a decision, a revert — **one short line**, newest first. **Not** every file edit. Skip it entirely for small tweaks, refactors and work in progress, and **never log churn reverted in the same session.** Unsure? Then it isn't meaningful — update `STATUS.md` and skip the changelog.
 3. **Update this file only for things still true tomorrow** — conventions and gotchas. It is instructions, not a record and not a status board. "What I did" → `CHANGELOG.md`; "what state it's in" → `STATUS.md`; "what's left" → `TODO.md`; "why it looks like that" → `DESIGN_NOTES.md`.
-4. **Update the Component Registry** when a component is created or its purpose changes — one line, and only the gotcha someone would get wrong without it. Not a description of the work.
-5. **Run `pnpm --filter @eventmind/web type-check` before finishing.** Non-negotiable.
-6. **Test in the browser** for UI changes. Type-checking does not catch visual bugs.
-7. **Match the brand system** — tokens from `globals.css`, one font, no new colours or fonts without approval.
-8. **Save new project documents to `Eventmind_files/`**, not inside `eventmind/`.
-9. **Never commit `.env.local`, `.env` or `start.bat`** — all git-ignored, all hold secrets.
-10. **Keep Node at v20+** — `.nvmrc` pins 24.16.0; run `nvm use` inside `frontend_react/`.
-11. **If you delete `platform_dev.db`** — restart all services first (so the community service creates the `communities` table), then re-run `seed_events.py`.
-12. **Always stop the dev server with `Ctrl+C` in its terminal** — never just close the window. Killing the terminal on Windows orphans the Next.js worker processes; they accumulate across runs (we once found 321 zombie `node` processes), eat RAM, and cause heap-allocation crashes on later runs. Clean up orphans after a crash:
+4. **Update `COMPONENTS.md`** when a component is created or its purpose changes — one row, and only the gotcha someone would get wrong without it. Not a description of the work. **Add the file to this file's *Component Registry* index too** (one short line, no gotcha), or it exists in the registry and nowhere anyone will look. ⚠️ **A row that has grown into an essay is a bug** — the reasoning belongs in `DESIGN_NOTES.md` with a pointer left behind. The registry hit 67 KB before it was split out; **keeping it small is what keeps it read.**
+5. **Run `pnpm --filter @eventmind/web type-check` before finishing** — mandatory, with the one narrow exception stated in *Execution Rules*. **Lint and visual verification are conditional; their conditions are stated there too.** Do not restate any of the three here — one definition or they drift.
+6. **Match the brand system** — tokens from `globals.css`, one font, no new colours or fonts without approval.
+7. **Save new project documents to `Eventmind_files/`**, not inside `eventmind/`.
+8. **Never commit `.env.local`, `.env` or `start.bat`** — all git-ignored, all hold secrets.
+9. **Keep Node at v20+** — `.nvmrc` pins 24.16.0; run `nvm use` inside `frontend_react/`.
+10. **If you delete `platform_dev.db`** — restart all services first (so the community service creates the `communities` table), then re-run `seed_events.py`.
+11. **Always stop the dev server with `Ctrl+C` in its terminal** — never just close the window. Killing the terminal on Windows orphans the Next.js worker processes; they accumulate across runs (we once found 321 zombie `node` processes), eat RAM, and cause heap-allocation crashes on later runs. Clean up orphans after a crash:
     ```powershell
     Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'next' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
     ```
-13. **Never attribute commits to Claude.** No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines, no AI attribution in commit messages or PR descriptions.
+12. **Never attribute commits to Claude.** No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines, no AI attribution in commit messages or PR descriptions.
 
 ---
 
 ## Keeping this file true
 
-This file is only worth its tokens if every line is still correct. Three rules, in priority order:
+This file is only worth its tokens if every line is still correct — **and if there are not too many
+of them.** Four rules, in priority order:
+
+- **⚠️ THE BUDGET IS 75 KB. Over it, extract a section — do not trim sentences.** Check with
+  `(Get-Item CLAUDE.md).Length/1KB`. Nothing enforces this by itself, so **check it whenever you add
+  more than a line or two here**; a session that never measures will never notice. **Extraction is
+  the move, not compression:** the registry left for `COMPONENTS.md` on 2026-08-31 and took 60 KB
+  with it, while every gotcha survived intact. Next in line if the ceiling is hit again: *How to
+  Run*'s optional halves (Ticketmaster, Postgres, dummy-vs-real) into a `RUNNING.md`, then *Brand &
+  Design*'s rationale into `DESIGN_NOTES.md` — **keeping the rule here and the reasoning there.**
+  ⚠️ **Every addition to this file feels individually justified; that is exactly how it reached
+  104 KB.** The question is never "is this line worth adding" but "is it worth adding *here*,
+  where every session pays for it on every turn."
 
 - **Point at the source of truth; don't copy it.** Colours, fonts, ports, limits and env vars are *defined* in `globals.css`, `layout.tsx`, `start.bat`, `config.py`, `.env.example`. **Name the file instead of restating the value** — a pointer can't rot, a copy silently does. **This is the strongest rule here:** it makes a whole class of drift structurally impossible.
 - **Verify before you write.** Check any factual claim against the code — not against memory, and not against what another section of this file says. A wrong line will happily propagate itself.

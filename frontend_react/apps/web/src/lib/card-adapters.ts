@@ -3,6 +3,24 @@ import { formatPrice } from "@/lib/currency";
 import type { CarouselEvent } from "@/components/EventsCarousel";
 import type { CommunityItem } from "@/components/CommunityCarousel";
 
+/**
+ * THE card picture for an event or a community.
+ *
+ * Deliberately the seeded placeholder rather than `eventImageUrl()` in
+ * lib/event-media.ts: that one prefers a real `image_url` (a Ticketmaster row
+ * carries one) and those hosts are not in `next.config.ts`'s `remotePatterns`,
+ * so a `next/image` rendering one throws. The share images can use it because
+ * they are drawn server-side by `next/og`, which does no host check.
+ *
+ * Exported because the ORGANISER CONSOLE draws it too — a row's thumbnail and
+ * the dashboard hero's photo are the same picture as that event's card, which is
+ * the whole point of putting a photo there. Keep every card-side surface on this
+ * one function; a fourth hand-written picsum URL is how they drift.
+ */
+export function cardImageUrl(id: string | number, w: number, h: number): string {
+  return `https://picsum.photos/seed/${id}/${w}/${h}`;
+}
+
 // Returns true when the event starts within today (inclusive) through today+6 days (inclusive).
 function isThisWeek(startDate: Date): boolean {
   const todayStart = new Date();
@@ -43,7 +61,7 @@ export function toCarouselEvent(event: Event): CarouselEvent {
     time,
     venue,
     price: isFree ? "Free" : `${formatPrice(price, event.currency)} onwards`,
-    imageUrl: `https://picsum.photos/seed/${event.id}/800/450`,
+    imageUrl: cardImageUrl(event.id, 800, 450),
     badge: badgeTypes[0] ? LABELS[badgeTypes[0]] : undefined,
     badgeTypes: badgeTypes.length ? badgeTypes : undefined,
     isSoldOut,
@@ -85,7 +103,7 @@ export function toCommunityItem(community: Community): CommunityItem {
     // native, so they take the platform default rather than a per-row code.
     price: isFree ? "Free" : `${formatPrice(price)}/month onwards`,
     memberCount,
-    imageUrl: `https://picsum.photos/seed/${community.id}/800/450`,
+    imageUrl: cardImageUrl(community.id, 800, 450),
     badge: isFree ? "Free" : undefined,
     badgeType: isFree ? "free" : undefined,
     category: community.category.toLowerCase(),
