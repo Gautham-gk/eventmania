@@ -306,7 +306,7 @@ function ExploreContent() {
 
   /* PARKED 2026-08-14 (MVP) — community query params. Communities have no format
      filter, so "online" is expressed as a category here (the documented exception
-     to the online-is-a-format rule — see CLAUDE.md).
+     to the online-is-a-format rule — see HANDOVER.md).
 
   const buildCommunityParams = useCallback(() => {
     if (online) return { q: q || undefined, category: "online" };

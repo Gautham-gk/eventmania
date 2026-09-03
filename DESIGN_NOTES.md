@@ -1,6 +1,6 @@
 # NewFind — Design Notes
 
-> The **reasoning** behind the visual decisions, and the measurements that back them. `CLAUDE.md`
+> The **reasoning** behind the visual decisions, and the measurements that back them. `HANDOVER.md`
 > carries the rules; this file carries the *why*, so the rules stay short and this stays skimmable.
 >
 > **Read §1 before proposing any layout or visual change to a shared surface.** Several things here

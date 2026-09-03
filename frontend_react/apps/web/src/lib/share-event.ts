@@ -28,7 +28,7 @@ export interface ShareFallback {
  * ⚠️ Communities are addressed by the SAME value their cards link to
  * (`CommunityItem.id`). The `/community/[slug]` route resolves by slug, so if
  * the API ever returns `slug !== id` the card link and this URL are wrong
- * together rather than differently — see CLAUDE.md, community slug-vs-id note.
+ * together rather than differently — see HANDOVER.md, community slug-vs-id note.
  */
 export function shareUrl(kind: ShareKind, id: string): string {
   const path = `/${kind}/${id}`;
