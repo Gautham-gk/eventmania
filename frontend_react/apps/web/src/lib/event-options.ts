@@ -29,7 +29,7 @@ export const CATEGORIES = [
   "Other",
 ];
 
-/** ⚠️ FORMAT, not category — the two axes are orthogonal (CLAUDE.md). */
+/** ⚠️ FORMAT, not category — the two axes are orthogonal (HANDOVER.md). */
 export const EVENT_TYPES = ["In-Person", "Online", "Hybrid"] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

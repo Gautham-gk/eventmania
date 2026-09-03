@@ -1,6 +1,6 @@
 # Component Registry — NewFind
 
-> **Read this when you are about to touch a component, not before every task.** `CLAUDE.md` carries
+> **Read this when you are about to touch a component, not before every task.** `HANDOVER.md` carries
 > a one-line index of every file here; this file carries the **gotcha** for each — the thing you
 > would get wrong without being told. Rationale and measurements live in `DESIGN_NOTES.md`.
 >

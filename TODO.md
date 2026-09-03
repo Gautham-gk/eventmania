@@ -1210,7 +1210,7 @@ still use `useHoverStyle` so it hovers green like everything else in the bar.
 - ⚠️ **The unread badge must be `absolute`-positioned over the glyph**, exactly like `ChatButton`'s
   dot. The navbar's search box is the row's only elastic element and the fit at **1024px** is
   arithmetic, not measured — anything that widens the button row means re-measuring at exactly
-  1024px (see `CLAUDE.md` → Responsiveness, and the `w-[170px] xl:w-[410px]` comment in the file).
+  1024px (see `apps/web/CLAUDE.md` → Responsiveness, and the `w-[170px] xl:w-[410px]` comment in the file).
   An overlaid badge changes no width and avoids the whole problem.
 - ⚠️ **Colour anything that hovers with CLASSES, not an inline `style`.** An inline colour beats a
   `hover:` rule; this has bitten the console table row, `FeatureBand`'s audience badge and
@@ -1242,7 +1242,7 @@ that persist, and that are individually **read or unread**. None of that exists.
 
 ⚠️ **The `notification` service is NOT a head start — it is a mailer.**
 `backend/services/notification/` consumes Kafka and sends **email and SMS** (SendGrid + a Twilio
-placeholder). It declares **no `DATABASE_URL`** — `CLAUDE.md` correctly lists it among the stateless
+placeholder). It declares **no `DATABASE_URL`** — `HANDOVER.md` correctly lists it among the stateless
 services — and `main.py` exposes **only a `/` health check**. It stores nothing and serves nothing a
 UI can read. This feature needs a *notification feed*, which is either a new stateful service or a
 new persistence layer plus routes inside this one. **Decide which before starting.**

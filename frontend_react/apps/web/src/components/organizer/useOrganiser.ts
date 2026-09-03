@@ -2,7 +2,7 @@
 //
 // Kept out of the layout so every console section can read the same organiser
 // without re-deriving the JWT claim. The `_hasHydrated` gate is the pattern
-// CLAUDE.md points at (`/chat`, `app/page.tsx`): zustand rehydrates from
+// HANDOVER.md points at (`/chat`, `app/page.tsx`): zustand rehydrates from
 // localStorage AFTER first render, so a guard that reads `isAuthenticated`
 // straight away bounces a signed-in user to /auth on every refresh.
 //
@@ -136,7 +136,7 @@ export function useOrganiser() {
  * same token claim and redirects nobody.
  *
  * Returns false until zustand has rehydrated, so the bar appears once rather
- * than flashing in — the `_hasHydrated` pattern CLAUDE.md points at.
+ * than flashing in — the `_hasHydrated` pattern HANDOVER.md points at.
  */
 export function useIsEventOwner(event: Event | null | undefined): boolean {
   const hasHydrated = useAuthStore((s) => s._hasHydrated);

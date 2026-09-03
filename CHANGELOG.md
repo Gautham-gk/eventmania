@@ -9,6 +9,22 @@
 
 ---
 
+## 2026-09-03
+
+- **The project instructions are split into a standing prompt and a handover doc** (Gautham) — the
+  single 52 KB file was doing two jobs at once, and only one of them is worth loading every session.
+  Root `CLAUDE.md` (11.7 KB) now holds only what a session needs *before* it knows to ask —
+  execution rules, contribution guidelines, performance rules, and the routing table. The brand and
+  design system moved to `frontend_react/apps/web/CLAUDE.md` (13.6 KB), which loads only when web
+  files are touched and costs nothing on a backend or docs task. `HANDOVER.md` keeps how-to-run,
+  architecture, the component index and the shipping checklist, read on demand with no budget.
+  **Every session paid 52 KB before; it now pays 11.7 KB, and ~25 KB on frontend work.** The sorting
+  rule, the per-file budgets and the reasoning are in `HANDOVER.md` → *Keeping these docs true*.
+- **Branch history rewritten to match `main`** (Gautham) — the three `Co-Authored-By: Claude`
+  trailers were stripped and Biswajith's four author identities canonicalised to one, reproducing
+  the rewrite already on `main`. The two histories had shared no commit at all; they now share a
+  merge base again and the branch merges normally.
+
 ## 2026-09-02
 
 - **The console's event pills are tag-palette fills, and its tabs move like the control beside

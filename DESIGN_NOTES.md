@@ -590,6 +590,6 @@ into shared helpers (both had been copy-pasted), and one new CSS class was added
 render.
 
 **The root cause, and the standing fix.** `ConsoleUI.tsx` forked instead of skinning, and there is
-still no shared Button component (CLAUDE.md records that this is why the 2px outline treatment had
-to be applied in ~20 places across 12 files). The type scale is now written down in CLAUDE.md so the
+still no shared Button component (apps/web/CLAUDE.md records that this is why the 2px outline treatment had
+to be applied in ~20 places across 12 files). The type scale is now written down in apps/web/CLAUDE.md so the
 next surface cannot quietly re-derive its own.
