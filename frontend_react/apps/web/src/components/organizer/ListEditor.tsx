@@ -229,6 +229,7 @@ export function ListEditor({
   errors,
   disabled,
   disabledNote,
+  showAdd = true,
 }: {
   kind: ListKind;
   rows: Row[];
@@ -239,6 +240,17 @@ export function ListEditor({
   disabled?: boolean;
   /** Why it is disabled. Shown in place of the intro; required when disabled. */
   disabledNote?: string;
+  /**
+   * The dashed "add another row" button at the foot.
+   *
+   * ⚠️ `/organizer/create` NEEDS IT — that form starts at zero rows, so without
+   * it the agenda and FAQ sections cannot be filled in at all. `EditListModal`
+   * turns it off (Gautham, 2026-09-02): the dialog is opened by a control that
+   * already said "Post an announcement", and a second button repeating those
+   * words inside it is the same question asked twice. **A new call site keeps
+   * the default unless it seeds its own row the way the dialog does.**
+   */
+  showAdd?: boolean;
 }) {
   const spec = SPEC[kind];
 
@@ -264,7 +276,10 @@ export function ListEditor({
         {disabled && disabledNote ? disabledNote : spec.intro}
       </p>
 
-      {rows.length === 0 && !disabled && (
+      {/* "below" names the add button, so the line goes when the button does —
+          otherwise it points at nothing. Without the button an empty editor is
+          the organiser having removed every row, and Save is what commits it. */}
+      {rows.length === 0 && !disabled && showAdd && (
         <p className="text-[16px] text-[var(--brand-hint)]">
           Nothing here yet. Add the first one below.
         </p>
@@ -348,17 +363,19 @@ export function ListEditor({
         </div>
       ))}
 
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange([...rows, blankRow(kind)])}
-        className="w-full py-3 rounded-2xl text-[16px] font-bold transition-colors
-                   text-[var(--brand-text)] disabled:opacity-40 disabled:cursor-not-allowed
-                   enabled:hover:bg-[var(--brand-green)] enabled:hover:text-[var(--brand-on-green)]"
-        style={{ border: "2px dashed var(--brand-control-border)" }}
-      >
-        {spec.addLabel}
-      </button>
+      {showAdd && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange([...rows, blankRow(kind)])}
+          className="w-full py-3 rounded-2xl text-[16px] font-bold transition-colors
+                     text-[var(--brand-text)] disabled:opacity-40 disabled:cursor-not-allowed
+                     enabled:hover:bg-[var(--brand-green)] enabled:hover:text-[var(--brand-on-green)]"
+          style={{ border: "2px dashed var(--brand-control-border)" }}
+        >
+          {spec.addLabel}
+        </button>
+      )}
     </div>
   );
 }

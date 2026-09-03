@@ -116,29 +116,29 @@ export function EditListModal({
       onClose={onClose}
       width="max-w-2xl"
       footer={
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-3.5 rounded-2xl text-[16px] font-bold transition-colors"
-            style={{ border: "2px solid var(--brand-control-border)", color: "var(--brand-text)" }}
-          >
-            Discard
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={save.isPending}
-            className="flex-[2] py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
-            style={{ backgroundColor: "var(--brand-green)" }}
-          >
-            {save.isPending ? "Saving…" : "Save changes"}
-          </button>
-        </div>
+        // ⚠️ SAVE IS THE ONLY BUTTON HERE (Gautham, 2026-09-02). Discard was
+        // the third way out of a dialog that already has two — the title row's
+        // ✕ and `ModalShell`'s Escape / click-outside — and it read as a
+        // decision to make rather than the way back. **Do not add it back, and
+        // do not put a Cancel in its place**; the other organiser dialogs keep
+        // their pair because each of those commits something destructive or
+        // irreversible, and this one does not.
+        <button
+          type="button"
+          onClick={submit}
+          disabled={save.isPending}
+          className="w-full py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
+          style={{ backgroundColor: "var(--brand-green)" }}
+        >
+          {save.isPending ? "Saving…" : "Save changes"}
+        </button>
       }
     >
       <div className="space-y-5">
-        <ListEditor kind={kind} rows={rows} onChange={setRows} errors={errors} />
+        {/* `showAdd={false}` — the control that opened this already said "Post
+            an announcement" / "Add an agenda" / "Add an FAQ", and `extraRow`
+            put the organiser on the fields. See `ListEditor`'s prop. */}
+        <ListEditor kind={kind} rows={rows} onChange={setRows} errors={errors} showAdd={false} />
 
         {error && (
           <p className="text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">{error}</p>

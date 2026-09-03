@@ -590,6 +590,14 @@ Standard patterns:
     Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'next' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
     ```
 12. **Never attribute commits to Claude.** No `Co-Authored-By: Claude` trailers, no "Generated with Claude Code" lines, no AI attribution in commit messages or PR descriptions.
+13. **⚠️ STRIP THE DEV BYPASS BEFORE DEPLOYING.** `lib/dev-flags.ts` holds the developer escape hatches — today `SKIP_ORGANIZER_VERIFICATION`, which opens `/organizer/create` with no verified organiser profile and adds a dev strip to `/organizer/onboarding`. **Remove all of it as part of shipping**, in this order:
+    1. Delete `lib/dev-flags.ts`.
+    2. In `app/organizer/create/page.tsx` — drop the import, reset `verificationChecked` to `useState(false)`, delete the early return in the gate effect, and put the back button back to a plain `router.back()`.
+    3. In `app/organizer/onboarding/page.tsx` — drop the import, delete the early return that suppresses the verified-organiser redirect, and delete the dashed dev strip above the header.
+    4. Remove `NEXT_PUBLIC_SKIP_ORGANIZER_VERIFICATION` from `.env.local.example` and from every developer's `.env.local`.
+    5. Delete the `lib/dev-flags.ts` row from `COMPONENTS.md` and from this file's *Component Registry*, and this guideline with them.
+
+    **What this is NOT:** it is not a live hole in production. Every flag is `NODE_ENV === "development" && <env var>`, both halves statically replaced at build time, so a production build already evaluates each to `false` and the bundler drops the code behind it — **setting the env var in a deploy environment does nothing.** This item is hygiene, and it is here so the removal is a deliberate step rather than something a release discovers. **The corollary matters more than the checklist: if you ever find a flag in that file missing its `NODE_ENV` half, that one IS a live bypass — fix it before anything else ships.**
 
 ---
 
