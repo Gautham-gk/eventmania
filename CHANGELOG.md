@@ -25,6 +25,17 @@
   the rewrite already on `main`. The two histories had shared no commit at all; they now share a
   merge base again and the branch merges normally.
 
+- **The Playwright end-to-end harness is removed** (Gautham) — `test_app.mjs` and
+  `test_auth_chat.mjs` walked a 17-step journey (homepage → register → checkout → AI chat reply)
+  and screenshotted each step, but have been inert since June: their `node_modules` was dropped in
+  `d353480`, and both hardcode an output path on another machine. Nothing referenced them and
+  nothing replaced them, so **this leaves the project with no automated end-to-end coverage** — the
+  scripts are recoverable from history if reviving them beats rewriting. The root `package.json`
+  went with them; its only purpose was declaring `playwright`, and it was what invited an
+  `npm install` at the repo root in the first place. `screenshots/` is kept. `node_modules/` is now
+  in the root `.gitignore`, which it never was — the June commit landed at the repo root, and the
+  existing rules only cover `frontend_react/`.
+
 ## 2026-09-02
 
 - **The console's event pills are tag-palette fills, and its tabs move like the control beside
