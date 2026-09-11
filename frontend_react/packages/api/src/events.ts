@@ -7,6 +7,10 @@ export interface EventSearchParams {
   event_type?: string;
   date_from?: string;
   date_to?: string;
+  /** Inclusive price bounds, compared against the RAW `price` number — the
+   *  backend does no currency conversion, so a range is only meaningful within
+   *  one currency. See TODO.md §25. */
+  price_min?: number;
   price_max?: number;
   community_id?: string;
   lat?: number;

@@ -43,10 +43,9 @@ function Outline({ className = DEFAULT_CLASS, color = "currentColor", d }: IconP
   );
 }
 
-/** Dashboard — a panel split into one large and two small regions. */
-export function DashboardIcon(props: IconProps) {
-  return <Outline {...props} d="M4 4h7v10H4V4Zm9 0h7v6h-7V4Zm0 8h7v8h-7v-8ZM4 16h7v4H4v-4Z" />;
-}
+/* ⚠️ `DashboardIcon` was here and went with the Dashboard section on
+   2026-09-07 — the console has three rail items now, none of them a dashboard.
+   Do not re-add it speculatively; see ConsoleSidebar's header note. */
 
 /** Earnings — a banknote. Currency-neutral on purpose: the console formats
  *  amounts through lib/currency, so the glyph must not hardcode a ₹ or a $. */
@@ -116,6 +115,25 @@ export function DownloadIcon(props: IconProps) {
 /** Horizontal ellipsis — the row overflow menu. */
 export function MoreIcon(props: IconProps) {
   return <Outline {...props} d="M6 12h.01M12 12h.01M18 12h.01" />;
+}
+
+/**
+ * Speech bubble with three dots — a chat, anywhere in the app.
+ *
+ * ⚠️ **THE NAVBAR IMPORTS THIS ONE.** It was drawn inline inside `ChatButton`
+ * until the Events panel grew an "Unread chats" group and needed the same
+ * glyph; a second drawing is exactly the drift the one-icon-per-concept rule
+ * forbids, so the navbar's copy was deleted and both now read from here.
+ * That makes this the one glyph in the file with a caller outside the console —
+ * do not "tidy" it back into `Navbar.tsx`.
+ */
+export function ChatIcon(props: IconProps) {
+  return (
+    <Outline
+      {...props}
+      d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
+    />
+  );
 }
 
 /**

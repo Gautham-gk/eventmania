@@ -2,8 +2,11 @@
 //
 // ⚠️ THE HEADLINE FIGURE IS "SETTLED TO YOU", NOT A BALANCE. Attendees pay the
 // organiser directly at checkout — the platform never holds the money, so there
-// is nothing here to withdraw. The hero copy says that explicitly and must keep
-// saying it: a number this size, unqualified, reads as a wallet.
+// is nothing here to withdraw. The explaining paragraph under the figure, and
+// the ink panel it sat on, were removed on 2026-09-11 (Gautham): the four
+// figures are now four identical `StatTile`s, and "where does my money land" is
+// answered once, in the Payments card at the foot of the page. Do not put the
+// paragraph or the dark panel back.
 //
 // ⚠️ THE 2% IS THE BUYER'S, NOT A DEDUCTION FROM THE ORGANISER. The imported
 // design showed `net = gross - fee - refunds`, i.e. the organiser paying the
@@ -13,6 +16,11 @@
 // page's pricing card already promises that to users. So `net = gross -
 // refunds`, and the fee column is kept but relabelled "Buyer fee", informational
 // only. Do not "restore" it to a subtraction.
+//
+// ⚠️ THE RATE ITSELF IS PRINTED IN THE TABLE ONLY (Gautham, 2026-09-11). The
+// column head still reads "Buyer fee 2%", because that is where the figure it
+// describes is; the tiles above say who pays it, not what it is. Do not put
+// `feePct` back into a tile label or sub-line.
 //
 // Every row shows gross → buyer fee → refunds → net, so the arithmetic is
 // visible rather than asserted. The totals row adds the columns actually
@@ -48,9 +56,9 @@ import { organizerSource } from "@/lib/data-source";
 import { CONVENIENCE_FEE_RATE, type DummyPaymentTerm } from "@/lib/fixtures/organizer";
 import { formatPrice } from "@/lib/currency";
 import {
-  Card, InkPanel, MicroLabel, StatTile, FilterButton, FilterSelect, ConsoleButton,
+  Card, StatTile, FilterButton, FilterSelect, ConsoleButton,
   EmptyState, NotBuiltYet,
-  TableScroller, TableHead, TableRow, ON_INK, ON_INK_SOFT, ACCENT,
+  TableScroller, TableHead, TableRow,
 } from "@/components/organizer/ConsoleUI";
 import { DownloadIcon } from "@/components/organizer/ConsoleIcons";
 import { useOrganiser, useOrganiserEvents } from "@/components/organizer/useOrganiser";
@@ -182,35 +190,22 @@ function EarningsInner() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3.5 lg:grid-cols-[1.3fr_1fr_1fr_1fr]">
-        <InkPanel>
-          {/* ⚠️ The label NAMES WHAT IS BEING SUMMED. The totals add the rows on
-              screen, so under a filter this figure is one event's settlement,
-              not the portfolio's — and an unqualified "Settled to you" over a
-              filtered number is the kind of plausible-but-wrong figure TODO.md
-              §19.9 warns about. */}
-          <MicroLabel color={ACCENT}>
-            {filtered ? `Settled to you · ${rows[0]?.title ?? "this event"}` : "Settled to you"}
-          </MicroLabel>
-          {/* The page's largest figure, on the site's heading recipe —
-              extrabold + -0.5px, matching the stat tiles beside it. */}
-          <div
-            className="font-extrabold leading-none mt-2.5 tracking-[-0.5px]"
-            style={{ fontSize: "clamp(34px, 4vw, 44px)", color: ON_INK }}
-          >
-            {money(total.net)}
-          </div>
-          <p className="text-[17px] mt-3 leading-relaxed" style={{ color: ON_INK_SOFT, textWrap: "pretty" }}>
-            Attendees pay you directly — NewFind holds nothing, so there is no balance to withdraw.
-            You keep the full ticket price: this is your sales minus the refunds you issued. The{" "}
-            {feePct} convenience fee is added to the buyer&apos;s total at checkout, not taken out of yours.
-          </p>
-        </InkPanel>
+      <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        {/* ⚠️ The label NAMES WHAT IS BEING SUMMED. The totals add the rows on
+            screen, so under a filter this figure is one event's settlement, not
+            the portfolio's — and an unqualified "Settled to you" over a filtered
+            number is the kind of plausible-but-wrong figure TODO.md §19.9 warns
+            about. */}
+        <StatTile
+          label={filtered ? `Settled to you · ${rows[0]?.title ?? "this event"}` : "Settled to you"}
+          value={money(total.net)}
+          sub="sales minus refunds"
+        />
 
         <StatTile
           label="Buyer fee collected"
           value={money(total.buyerFee)}
-          sub={`${feePct} paid by attendees, on top`}
+          sub="paid by attendees, on top"
         />
         <StatTile
           label="Refunds issued"

@@ -19,6 +19,7 @@
 | **A category tile is a bare photo carrying one chip — no wash, no body, no separate button** | Four versions were built and replaced: the accent wash over the photo ("reads as a coloured block, not a photo"), the linen body row carrying an **Explore** button, bare text on a black scrim (replaced once the label moved into `CategoryBadge size="lg"`, which brings its own fill), and a standalone arrow button at the tile's right edge (clubbed into the chip instead). The arrow that replaced the Explore button is **decoration, not a control** — the objection to the button was never the affordance, it was that a nested control duplicates the tab stop the tile already provides. |
 | **`SimilarEvents` card width is percentage-based and full-bleed** | A fixed 320px matched home only at 1440px and Gautham spotted it as "smaller". A `100vw`-based version was wrong twice — see §2. Do not move the rail back inside the capped column. |
 | **Tags are `rounded-lg`, not pills** | `rounded-full` on a tag was tried and rejected. The same answer was then applied to buttons app-wide. |
+| **One radius for the whole app: `rounded-lg` (8px)** | Decided 2026-09-11 after Gautham read the app as "slightly varying" in shape surface to surface, and it was: buttons and inputs ran 6–16px, cards 16–24px, and some pills were still fully round. The role-based scale this replaced (`rounded-lg` chips, `rounded-xl` buttons and tabs, `rounded-2xl` cards, `rounded-3xl` payment panels and modals) was internally coherent on any one page and did not survive moving between them. **Two prior approvals were reversed by it** — `EventsCarousel`'s `rounded-xl` filter tab (2026-08-21) and the console's matching `Tabs`/`FilterSelect` (2026-08-22) — because a standing exception is exactly what a single radius cannot have. `rounded-md` survives only as the nested step inside a `p-1` track, and `rounded-full` only for things with no text label. |
 | **Category chip and status tags share one silhouette** | This supersedes an earlier "keep the shapes different" decision. **Fill** signals category-vs-status now; shape does not. Do not re-split them. |
 | **Health & Wellness uses `LotusPoseIcon`, not a leaf** | The leaf read as "eco/plants" rather than wellbeing. A heart was never an option — `EventActions` owns the heart, where it means "wishlisted". |
 | **Slide CTA and chat launcher are terracotta, not green** | So they read as accents rather than competing with the green Explore / Publish / Book Now CTAs. The carousel dots are therefore **white** — two terracotta elements on one photo read as the same control. ⚠️ The hero's slide CTA is **parked** as of 2026-08-11 (§9); the rule still binds the chat launcher, and binds the slide CTA again if it returns. |
@@ -176,7 +177,9 @@ padding, gap, weight and **light fills**. The status tags' dark tints are tuned 
 scrim and read as heavy blocks on a white body.
 
 Import `TAG_SHAPE` for any future chip that must share the silhouette. **Do not hand-write
-`rounded-lg` at the call site**, or the radius drifts apart the next time it moves.
+`rounded-lg` at the call site**, or the radius drifts apart the next time it moves. Since
+2026-09-11 that 8px is also the app's ONLY radius (§1), so a hand-written one is now wrong for a
+second reason: it is the value every button, input, card and panel shares.
 
 ---
 
@@ -196,7 +199,7 @@ clock — picked by Gautham off the event cards.
 
 ## 5. `CategoryGrid` specifics
 
-A category tile borrows the **event card's chassis** — same `rounded-2xl`, same borderless-at-rest →
+A category tile borrows the **event card's chassis** — same `rounded-lg`, same borderless-at-rest →
 2px border + 6px lift on hover, same `aspect-video` photo. **If `EventCardItem`'s hover or radius
 changes, change it here too.** But the tile has **no body**: it *is* the photo, with the category's
 label overlaid on it.
@@ -382,6 +385,14 @@ also suits the parked left column, which lost its toggle and its button pair.
 **Do not pin a height here again.** If the hero needs to be taller, re-crop or re-shoot the source
 images to the taller ratio and set the panel to *that* — do not ask cover to invent the difference.
 
+### Stacked (below lg): the photo leads
+
+`order-1 lg:order-2` on the panel, `order-2 lg:order-1` on the copy (Biswajith, 2026-09-07). The
+stack used to open with the three-line spoken exchange and put the photo below it; on a phone that
+read as a wall of quotes with the picture out of sight, and the exchange only makes sense with the
+photo it is reacting to. At `lg` the columns are what they always were — copy left, photo right —
+so the desktop render did not move.
+
 ### The hero is the one surface not capped at 1400px
 
 `<section>` carries the standard `GUTTERS`; the grid inside it has **no `maxWidth`** and is
@@ -541,7 +552,7 @@ designer, quieter room", never "home page with tables".
 |---|---|---|---|
 | Type scale | card title 20px, meta 18px, headings `clamp(18px,4vw,30px)` extrabold `-0.5px` | everything 15–16px, `h1` 28px `font-bold` `-0.01em`, 11px uppercase labels | row titles 20px, body 17px, figures 32px extrabold, headings on the public recipe |
 | Motion | card lifts, borders green, chips pop | nothing hovered, anywhere | rows wash 8% green, controls take the green-fill rule, buttons cross-fade on `transition-colors` |
-| Photography | every card, both heroes, every category tile | not one image | every table row, and the dashboard hero |
+| Photography | every card, both heroes, every category tile | not one image | every table row, and the console's "next up" hero |
 | Chip idiom | `EventBadge`, 16px bold sentence case | 11px uppercase `tracking-[0.1em]` | `EventBadge`'s recipe exactly |
 
 **Why the type scale mattered most.** The console held 24 of the app's 29 `data-keep-type` opt-outs —
@@ -550,8 +561,10 @@ everywhere. Uppercase-tracked-11px is generic SaaS-admin vocabulary; it appears 
 NewFind. Sitting the console on the public scale removed every one of those markers.
 
 **Why `Tabs` became the home page's filter tab, literally.** It is the control an organiser touches
-most, so it is the one most worth having be the same object rather than a near-miss: `rounded-xl`,
-20px semibold, 2px border on both states, **solid** green fill when picked. The old 12% green tint
+most, so it is the one most worth having be the same object rather than a near-miss: 20px
+semibold, 2px border on both states, **solid** green fill when picked. (Both wore `rounded-xl`
+when this landed; the single-radius sweep of 2026-09-11 moved the pair to `rounded-lg` together,
+which is the same point made a second time.) The old 12% green tint
 with a green label existed nowhere else in the app. This also activated `CountBadge`'s dormant
 `active` prop — terracotta on solid green is ~2.4:1, so an active tab's count takes linen, which is
 the console-wide count rule doing exactly what it was written for.
@@ -579,7 +592,7 @@ colour beats a `hover:` rule — so those buttons could not have had a hover sta
 been written. `ConsoleButton`'s tones are now class strings. This is the third time this trap has
 been recorded (FeatureBand's audience badge, `FilterSelect`'s menu items, now here).
 
-**Why the dashboard hero takes the photo at 24% and not full strength.** The public heroes put the
+**Why the console's "next up" hero takes the photo at 24% and not full strength.** The public heroes put the
 photo at full strength under `HERO_SCRIM`, because they carry one huge title over the gradient's
 darkest end. The console panel carries a dozen small figures across its whole height, so the ink has
 to stay dominant or the numbers land on whatever the photograph happens to be doing behind them.

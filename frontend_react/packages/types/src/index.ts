@@ -102,6 +102,17 @@ export interface Event {
   /** "Early bird", "Launch week" — the organiser's own name for the current
    *  price. ⚠️ No backend column; see the block above `AgendaItem`. */
   offer_name?: string;
+  /**
+   * Who is putting the event on — the ORGANISATION, not the signed-in person.
+   * It is what `/event/[id]` prints under "Organised by" (Gautham, 2026-09-11);
+   * that page falls back to its own placeholder while this is absent, which is
+   * every event written before the field existed.
+   *
+   * ⚠️ No backend column yet; see the block above `AgendaItem`. The create form
+   * asks for it regardless — the frontend is being built ahead of the column —
+   * so in real mode it is stripped on the way out and the fallback shows.
+   */
+  organization_name?: string;
   /** ⚠️ No backend column; see the block above `AgendaItem`. */
   agenda?: AgendaItem[];
   /** ⚠️ No backend column; see the block above `AgendaItem`. */
@@ -199,5 +210,7 @@ export interface OrganizerProfile {
   company_website?: string;
   country: string;
   registration_number: string;
+  bank_name: string;
+  bank_account_number: string;
   verification_status: VerificationStatus;
 }

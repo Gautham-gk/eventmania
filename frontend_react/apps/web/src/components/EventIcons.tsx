@@ -22,9 +22,16 @@
 //  Sizing is the caller's job via `className`; the default matches the compact
 //  card rows these mostly appear in.
 //
+//  THE FORMS ARE IN THE SET TOO, as of 2026-09-11: `FormControls.DateTimeInput`
+//  hides Chrome's own picker indicator and draws the calendar or the clock below
+//  instead, so `/organizer/create` and the organiser's edit dialog say "date"
+//  with the same glyph the cards do. **Never hand-draw a form's date icon.**
+//
 //  Not in this set (deliberately): the big decorative empty-state calendars,
 //  the /checkout "Expiry Date" field icon (that belongs to the payment form's
-//  own outline family), and the organiser console's stat glyphs.
+//  own outline family, and is a CARD's expiry rather than an event's date), and
+//  the organiser console's stat glyphs — including `ConsoleIcons.PendingIcon`,
+//  which is drawn as a clock but means "waiting on you", not a time.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ReactElement } from 'react'

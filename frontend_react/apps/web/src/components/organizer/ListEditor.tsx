@@ -26,6 +26,7 @@
 
 import type { AgendaItem, Announcement, Event, FaqItem } from "@eventmind/types";
 import { agendaOf, announcementsOf, extraId, faqOf, type EventExtras } from "@/lib/event-extras";
+import { OUTLINE_BUTTON, REMOVE_BUTTON } from "@/lib/controls";
 import { FormField, inputCls } from "@/components/FormControls";
 import { ChevronIcon } from "@/components/organizer/ConsoleIcons";
 
@@ -45,6 +46,15 @@ export const SPEC: Record<
   ListKind,
   {
     title: string;
+    /**
+     * The label on the control that OPENS this list's editor — the create
+     * page's card button, the event page's section button.
+     *
+     * ⚠️ NOT the button inside the editor: that one is always "Add more"
+     * (Gautham, 2026-09-11), because by the time it is on screen the dialog is
+     * already open on a row and "Add an item" would be repeating the words the
+     * organiser just pressed.
+     */
     addLabel: string;
     /** Singular. Used in the row heading and the empty state. */
     noun: string;
@@ -55,18 +65,20 @@ export const SPEC: Record<
   }
 > = {
   agenda: {
-    title: "Agenda of the programme",
+    title: "Agenda",
     addLabel: "Add an item",
     noun: "Item",
     // The rendered order IS this array's order — `AgendaSection` does not sort,
     // because `time` is free text and cannot be compared.
     reorderable: true,
-    intro:
-      "The running order, as attendees will read it. “When” is free text, so “10:00 AM”, “Day 2 · morning” and “After the break” all work.",
+    intro: "The running order of the programme, as attendees will read it.",
     fields: [
       { key: "time", label: "When", placeholder: "10:00 AM", required: true, max: 40 },
       { key: "title", label: "What", placeholder: "Doors open and welcome", required: true, max: 120 },
-      { key: "detail", label: "Details (optional)", multiline: true, max: 500 },
+      // "(optional)" used to be part of the label text here and on the
+      // announcement headline below. It is the `optional` annotation now — one
+      // system for every field, and the label goes back to being a label.
+      { key: "detail", label: "Details", multiline: true, max: 500 },
     ],
   },
   announcements: {
@@ -79,7 +91,7 @@ export const SPEC: Record<
     intro:
       "Everyone who opens the event page reads these, newest first. Nobody is emailed or notified — posting here does not reach anyone who does not come back to the page.",
     fields: [
-      { key: "title", label: "Headline (optional)", placeholder: "Venue has changed", max: 120 },
+      { key: "title", label: "Headline", placeholder: "Venue has changed", max: 120 },
       {
         key: "body",
         label: "Announcement",
@@ -95,7 +107,7 @@ export const SPEC: Record<
     addLabel: "Add a question",
     noun: "Question",
     reorderable: true,
-    intro: "The questions you keep being asked. Put the most common ones first.",
+    intro: "The questions you keep being asked.",
     fields: [
       { key: "question", label: "Question", placeholder: "Is there parking?", required: true, max: 200 },
       {
@@ -241,16 +253,22 @@ export function ListEditor({
   /** Why it is disabled. Shown in place of the intro; required when disabled. */
   disabledNote?: string;
   /**
-   * The dashed "add another row" button at the foot.
+   * The "add another row" button at the foot.
    *
    * ⚠️ `/organizer/create` NEEDS IT — that form starts at zero rows, so without
    * it the agenda and FAQ sections cannot be filled in at all. `EditListModal`
-   * turns it off (Gautham, 2026-09-02): the dialog is opened by a control that
-   * already said "Post an announcement", and a second button repeating those
-   * words inside it is the same question asked twice. **A new call site keeps
-   * the default unless it seeds its own row the way the dialog does.**
+   * turns it off (Gautham, 2026-09-02): editing one announcement on the event
+   * page is one row's worth of work, and the dialog seeds that row itself.
+   * **A new call site keeps the default unless it seeds its own row the way
+   * that dialog does.**
    */
   showAdd?: boolean;
+  // ⚠️ `inlineLabels` lived here and was DELETED (Gautham, 2026-09-11). It put a
+  // row's label beside its input for `/organizer/create`, whose other sections
+  // are inline. That form now runs its agenda and FAQ in a third of the page
+  // width each, where a 180px label column is half the row — so both call sites
+  // want labels ABOVE, which is the only layout left. Do not reintroduce it for
+  // a narrow surface; it was never the one that needed it.
 }) {
   const spec = SPEC[kind];
 
@@ -288,10 +306,15 @@ export function ListEditor({
       {rows.map((row, i) => (
         <div
           key={row.id}
-          className="rounded-2xl px-4 py-4 space-y-4"
-          style={{ border: "1px solid var(--brand-border)" }}
+          className="rounded-lg px-4 py-4 space-y-4"
+          // Same 2px --brand-control-border as the "Add" button below these rows
+          // and as the inputs inside them — see the note on `inputCls`. A 1px
+          // pale row card between two 2px controls read as a rendering fault.
+          style={{ border: "2px solid var(--brand-control-border)" }}
         >
-          <div className="flex items-center justify-between gap-2">
+          {/* flex-wrap: inside the dialog a 320px phone gives this row ~220px,
+              less than the label plus the three controls. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[15px] font-bold text-[var(--brand-text)]">
               {spec.noun} {i + 1}
             </span>
@@ -312,16 +335,16 @@ export function ListEditor({
                   />
                 </>
               )}
-              {/* Terracotta because it destroys content, matching the one
-                  destructive control on the event page. No confirm: the change
-                  is not committed until Save, and Discard undoes the lot. */}
+              {/* An ordinary outline button at rest — the shared `REMOVE_BUTTON`
+                  look, so this reads as the same kind of control as the "Add" one
+                  below. The terracotta it used to wear at rest now arrives only
+                  under the pointer. No confirm: the change is not committed until
+                  Save, and Discard undoes the lot. */}
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => onChange(rows.filter((r) => r.id !== row.id))}
-                className="px-2.5 py-1 rounded-lg text-[15px] font-bold transition-colors
-                           text-[var(--brand-terracotta)] disabled:opacity-35 disabled:cursor-not-allowed
-                           enabled:hover:bg-[var(--brand-terracotta)] enabled:hover:text-[var(--brand-on-terracotta)]"
+                className={`px-2.5 py-1 rounded-lg text-[15px] font-bold ${REMOVE_BUTTON}`}
               >
                 Remove
               </button>
@@ -335,6 +358,12 @@ export function ListEditor({
               <FormField
                 key={f.key}
                 label={f.label}
+                /* The spec already knows which of a row's fields block a save —
+                   `rowErrors` reads the same flag — so the row says so on the
+                   label rather than only in an error after the fact. Every
+                   field says one or the other; see `FormControls`. */
+                required={f.required}
+                optional={!f.required}
                 hint={value.length > f.max * 0.8 ? `${value.length}/${f.max}` : undefined}
                 error={err}
               >
@@ -368,15 +397,67 @@ export function ListEditor({
           type="button"
           disabled={disabled}
           onClick={() => onChange([...rows, blankRow(kind)])}
-          className="w-full py-3 rounded-2xl text-[16px] font-bold transition-colors
-                     text-[var(--brand-text)] disabled:opacity-40 disabled:cursor-not-allowed
-                     enabled:hover:bg-[var(--brand-green)] enabled:hover:text-[var(--brand-on-green)]"
-          style={{ border: "2px dashed var(--brand-control-border)" }}
+          /* ⚠️ Solid, not dashed (Gautham, 2026-09-09) — nothing in this product
+             wears a dashed edge. It reads as "add" from the label and the green
+             hover fill, which is what the Remove control beside it does too.
+             The edge and both colours are the shared `OUTLINE_BUTTON`; only the
+             geometry is this button's own. */
+          className={`w-full py-3 rounded-lg text-[16px] font-bold ${OUTLINE_BUTTON}`}
         >
-          {spec.addLabel}
+          {/* ⚠️ "Add more", NOT `spec.addLabel` (Gautham, 2026-09-11) — the
+              control that opened this dialog already said "Add an item", and
+              the dialog opens seeded with a row, so this button is only ever
+              pressed to add a SECOND one. See the note on `addLabel`. */}
+          Add more
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The rows as they READ, for a surface whose editor lives behind a dialog —
+ * `/organizer/create`'s Agenda and FAQ cards.
+ *
+ * ⚠️ SPEC-DRIVEN, so a fourth list or a new field needs nothing here: the
+ * single-line fields make the row's heading, joined with "·" (an agenda's
+ * "10:00 AM · Doors open", an FAQ's question), and the multiline ones follow as
+ * paragraphs. **It is not `/event/[id]`'s rendering and must not grow into it** —
+ * `EventSections` prints the published lists at page type into a 700px column,
+ * this prints a draft into a third of a form card.
+ */
+export function ListSummary({ kind, rows }: { kind: ListKind; rows: Row[] }) {
+  const heading = SPEC[kind].fields.filter((f) => !f.multiline);
+  const body = SPEC[kind].fields.filter((f) => f.multiline);
+
+  return (
+    <ul>
+      {rows.map((row, i) => (
+        <li
+          key={row.id}
+          className={`py-3 ${i > 0 ? "border-t border-[var(--brand-border)]" : "pt-0"}`}
+        >
+          <p className="text-[16px] font-bold text-[var(--brand-text)]">
+            {heading
+              .map((f) => row.values[f.key]?.trim())
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          {body.map((f) =>
+            row.values[f.key]?.trim() ? (
+              // whitespace-pre-line: they typed those line breaks into a
+              // textarea and meant them, same as the event page.
+              <p
+                key={f.key}
+                className="text-[15px] leading-relaxed text-[var(--brand-hint)] mt-1 whitespace-pre-line"
+              >
+                {row.values[f.key]}
+              </p>
+            ) : null,
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

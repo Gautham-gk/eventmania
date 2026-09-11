@@ -47,7 +47,7 @@
 //  was removed; two words say it without one. Do not re-add an icon here.
 //
 //  ⚠️ Rectangle with rounded edges, never a pill — the app's shape rule, and the
-//  radius nests: `rounded-xl` track, `rounded-lg` segments.
+//  radius nests: `rounded-lg` track, `rounded-md` segments.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
@@ -129,7 +129,7 @@ export function OrganiserViewToggle({
       <div
         role="group"
         aria-label="Event view mode"
-        className={`${HERO_CONTROL} flex items-center gap-1 rounded-xl p-1`}
+        className={`${HERO_CONTROL} flex items-center gap-1 rounded-lg p-1`}
         style={{
           backgroundColor: "var(--brand-surface)",
           border: hovered ? HERO_EDGE_HOVER : HERO_EDGE,
@@ -148,7 +148,7 @@ export function OrganiserViewToggle({
               // nests. 22px leading + 14px padding + the track's 8px + its 4px
               // of border = the 48px every control in this row stands at — see
               // `HERO_CONTROL`.
-              className={`${HERO_CONTROL} rounded-lg px-3.5 py-[7px] ${on ? SEGMENT.on : SEGMENT.off}`}
+              className={`${HERO_CONTROL} rounded-md px-3.5 py-[7px] ${on ? SEGMENT.on : SEGMENT.off}`}
             >
               {label}
             </button>

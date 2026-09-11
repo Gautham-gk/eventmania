@@ -75,7 +75,12 @@ export function EditPencil({
           setHovered(false);
           if (!active) e.currentTarget.style.color = HINT;
         }}
-        className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+        /* 28px under a mouse (the glyph is 16px and sits beside a heading; a
+           bigger ground would read as a second heading — see the note at the
+           top). On a COARSE pointer the box grows to 44px, the touch minimum,
+           and the negative margin gives the extra back so the row's layout is
+           byte-identical either way. */
+        className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer [@media(pointer:coarse)]:w-11 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:-m-2"
         style={{ color: active ? GREEN : HINT }}
       >
         <PencilLineIcon className="w-4 h-4" />
@@ -83,10 +88,14 @@ export function EditPencil({
 
       {/* Absolutely positioned, so hovering never reflows the row it sits in —
           the same rule EventActions' hover label follows. It opens to the RIGHT
-          because both call sites put this at the end of a left-aligned line. */}
+          because both call sites put this at the end of a left-aligned line.
+          Hidden on a device with NO hover (`hover: none` — phones, tablets):
+          a tap fires mouseenter but nothing ever fires mouseleave, so the
+          "Click here to…" tooltip would stick beside the heading after the
+          picker closed. */}
       {hovered && !active && (
         <span
-          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-full shadow-lg z-50 pointer-events-none"
+          className="[@media(hover:none)]:hidden absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded-lg shadow-lg z-50 pointer-events-none"
           style={{ backgroundColor: SURFACE, color: GREEN, border: `1px solid ${BORDER}` }}
         >
           {tooltip}

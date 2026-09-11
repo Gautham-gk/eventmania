@@ -63,10 +63,14 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`w-full ${width} rounded-3xl overflow-hidden flex flex-col max-h-[90vh]`}
+        /* 90dvh, not 90vh: on a phone the URL bar makes 100vh taller than the
+           visible screen, and a 90vh panel put its footer buttons under it. */
+        className={`w-full ${width} rounded-lg overflow-hidden flex flex-col max-h-[90dvh]`}
         style={{ backgroundColor: "var(--brand-surface)", border: "1px solid var(--brand-border)" }}
       >
-        <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-4 shrink-0">
+        {/* px-4 below sm: on a 320px phone the panel is 288px wide, and 48px of
+            side padding left the form only 240px. */}
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 pt-5 pb-4 shrink-0">
           <h2 className="text-[18px] font-bold text-[var(--brand-text)]">{title}</h2>
           <button
             onClick={onClose}
@@ -79,9 +83,9 @@ export function ModalShell({
           </button>
         </div>
 
-        <div className="px-6 pb-2 overflow-y-auto">{children}</div>
+        <div className="px-4 sm:px-6 pb-2 overflow-y-auto">{children}</div>
 
-        {footer && <div className="p-6 pt-4 shrink-0">{footer}</div>}
+        {footer && <div className="p-4 sm:p-6 pt-4 shrink-0">{footer}</div>}
       </div>
     </div>,
     document.body,

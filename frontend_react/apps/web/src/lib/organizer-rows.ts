@@ -2,8 +2,11 @@
 //  An `Event` → the row the organiser console draws.
 //
 //  This is the ONE place that decides which bucket an event falls in and what
-//  its money column says, so the dashboard's short table and the Events page's
-//  full one can never disagree about the same event. It lives in lib/ rather
+//  its money column says, so the Events table and the "next up" hero above it
+//  can never disagree about the same event. (Until 2026-09-07 it also kept that
+//  table honest against the Dashboard's five-row preview of it; the Dashboard
+//  went, but one definition is still the reason a figure cannot drift.) It lives
+//  in lib/ rather
 //  than in a page because it reads the clock, and calling `Date.now()` in a
 //  component body trips the `react-hooks/purity` lint rule (same reason
 //  lib/community-events.ts exists).
@@ -20,7 +23,7 @@
 
 import type { Event } from "@eventmind/types";
 import { isOnlineEvent } from "@eventmind/types";
-import { cardImageUrl } from "./card-adapters";
+import { eventImageUrl } from "./event-media";
 import { formatPrice } from "./currency";
 
 /** How far ahead an event still counts as actively selling rather than scheduled. */
@@ -28,12 +31,17 @@ export const LIVE_WINDOW_DAYS = 30;
 
 export type EventBucket = "live" | "upcoming" | "drafts" | "past";
 
+/** ⚠️ "Live" is FIRST and is the Events page's default tab (Gautham,
+ *  2026-09-09), with "All" immediately to its right. The console opens on the
+ *  events actually selling; an organiser with nothing in the next 30 days sees
+ *  an empty Live table and the "All" tab one click away. Keep the two in step:
+ *  this order and `useState("live")` there. */
 export const CONSOLE_TABS: { key: EventBucket | "all"; label: string }[] = [
   { key: "live", label: "Live" },
+  { key: "all", label: "All" },
   { key: "upcoming", label: "Upcoming" },
   { key: "drafts", label: "Drafts" },
   { key: "past", label: "Past" },
-  { key: "all", label: "All" },
 ];
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -50,9 +58,9 @@ export interface ConsoleRow {
   id: string;
   title: string;
   /**
-   * The event's own card picture — `cardImageUrl`, so a console row's thumbnail
-   * and the dashboard hero's photo are the SAME image the event's card shows on
-   * home and /explore. Never write a second URL rule here; see that function.
+   * The event's own card picture — `eventImageUrl`, so a console row's
+   * thumbnail is the SAME image the event's card shows on home and /explore.
+   * Never write a second URL rule here; see that function.
    */
   image: string;
   bucket: EventBucket;
@@ -104,7 +112,7 @@ export function toConsoleRow(event: Event, now = Date.now()): ConsoleRow {
     id: event.id,
     title: event.title,
     // 2× the 56px the tables draw it at, for a retina row.
-    image: cardImageUrl(event.id, 112, 112),
+    image: eventImageUrl(event, 112, 112),
     bucket,
     status: STATUS_LABEL[bucket],
     // ⚠️ There is no visibility field here, and a row draws no Public/Private

@@ -55,6 +55,8 @@ frontend half is a *swap*, not a build. Read the section before assuming there i
 | 22 | Posting an announcement is too hard for an organiser | `[FE]` · decision |
 | 23 | `registration_closed` has no backend — the UI ships ahead of it | `[BE]` |
 | 24 | Notifications move to the navbar bell | `[BE]` — pill removed 2026-09-02, **the bell now owes its signals** |
+| 25 | Multi-currency — every amount is a bare number | `[FE+BE]` · decision |
+| 26 | Contact person email on `/organizer/onboarding` is collected but not persisted | `[BE]` |
 
 ---
 
@@ -353,18 +355,14 @@ register in the assistant's answers.
 
 ---
 
-## 8. `[FE]` Home-page filter tabs — DECIDED for events, still open for communities
+## 8. `[FE]` Home-page filter tabs — CLOSED
 
-**`EventsCarousel.tsx` is done (Gautham, 2026-08-21).** Both its rows — offline and online — are
-now `rounded-xl`, deliberately taking the event card's **"View details" CTA silhouette** rather than
-the `rounded-lg` the shape rule prescribes for small controls. Gautham compared the two live and
-picked this one. It is an approved departure, **not a stray to sweep to `rounded-lg`** — and the
-tabs and that CTA now move together (they already share `px-4 py-1.5` and 20px type).
-
-**`CommunityCarousel.tsx` still carries `rounded-full` on both its rows** (lines ~641 and ~818).
-Left alone on purpose: communities are parked for Phase 2 (§12), so the file is unreachable and
-restyling it would be an unrequested change to parked code. **Match it to `rounded-xl` as part of
-the §12 restore**, or the two carousels ship visibly different filter chips.
+**Nothing left here.** The tabs were the last radius question in the app and the app-wide
+single-radius sweep (Gautham, 2026-09-11) answered it: every tab row is `rounded-lg`, the same as
+every other control. `EventsCarousel`'s approved `rounded-xl` departure and `CommunityCarousel`'s
+`rounded-full` pills both went in that sweep, parked code included, so the two carousels no longer
+diverge and the §12 restore has nothing to match up. The rule is in
+`frontend_react/apps/web/CLAUDE.md` → *Shape*.
 
 ---
 
@@ -416,7 +414,7 @@ nothing in common but their size.
 - `[FE+BE]` **Social login** — buttons present, disabled.
 - `[FE+BE]` **Event image upload** — `image_url` exists and is populated for synced events; no organiser upload path, no field on the create form.
 - `[FE+BE]` **Ticket tiers** — backend supports one price per event; Free/Standard/VIP needs schema changes.
-- `[FE+BE]` **Networking Profile** — `/dashboard` interests are hardcoded (Technology, AI, Venture Capital); needs real profile storage.
+- `[FE+BE]` **Participant Profile** — `/dashboard` interests are hardcoded (Technology, AI, Venture Capital); needs real profile storage. The profile picture added 2026-09-11 is in the same boat: `useProfileStore` writes it to localStorage because `profiles.avatar_url` is a `String(512)` with no upload endpoint behind it. When storage lands, `fileToAvatarDataUrl` becomes the POST and the store becomes its cache — no call site moves.
 - `[FE]` **One dialog chassis, two definitions.** `components/ModalShell.tsx` is the shared one
   (overlay, panel, title row, Escape, click-outside, portal) and the organiser's edit and cancel
   dialogs use it. **`components/ShareModal.tsx` predates it and still hand-rolls the same chassis** —
@@ -703,10 +701,16 @@ mobile). Left as-is for now.
 ## 19. `[BE]` Organiser console — the backend behind the dashboard v2
 
 **The UI is built and live** (`app/organizer/(console)/*`, imported from the Claude Design file
-"Organiser Dashboard v2", 2026-08-20). Four sections: Dashboard, Events, Attendees, Earnings.
-**One of them is real; three are waiting on endpoints that do not exist.**
+"Organiser Dashboard v2", 2026-08-20). Three sections: Events, Attendees, Earnings.
+**One of them is real; two are waiting on endpoints that do not exist.**
 
-> ⚠️ **TWO SECTIONS WERE DELETED ON 2026-09-01 (Gautham), and neither is rebuilt without asking.**
+> ⚠️ **THREE SECTIONS HAVE BEEN DELETED (Gautham), and none is rebuilt without asking.**
+>
+> - **Dashboard** (2026-09-07) — it and Events showed the same rows off the same `toConsoleRows`,
+>   one truncated to five. Its **overview band** — the ink "next up" hero, its notifications
+>   column and the five portfolio tiles — is now the top of `/organizer/events`, which is the
+>   console's landing section and wears the greeting as its `h1`. `/organizer` redirects there.
+>   **Everything below that used to say "Dashboard + Events" now means Events alone.**
 >
 > - **Settings** — route, rail item and gear glyph gone, with the organiser-profile /
 >   event-defaults / team-&-notifications groups. Only its four **payment terms** survive, as a
@@ -716,10 +720,10 @@ mobile). Left as-is for now.
 >   `.thread()` and the whole `unread` question count, gone. Attendee conversation happens in the
 >   **chat** surfaces for organisers and participants alike; making that work for an organiser is a
 >   backend job, restated in §19.1 below. **Nothing counts unanswered questions any more**, which is
->   why the header's "N need you" pill is attendees-only and the dashboard hero lost its "Questions"
+>   why the header's "N need you" pill is attendees-only and the "next up" hero lost its "Questions"
 >   tile and both room CTAs. Do not reintroduce a count that can only print zero.
 
-**Real today:** Dashboard + Events, from `eventsSource.search({ organizer_id })` via
+**Real today:** Events, from `eventsSource.search({ organizer_id })` via
 `organizerSource.events()`. Event, when, where, sold (`tickets_sold`/`capacity`), gross revenue
 (`tickets_sold × price`, in the event's own currency) and the live/upcoming/past/draft buckets are
 all derived from data the events service actually returns.
@@ -754,7 +758,11 @@ this design must not have.
    paid, booked-at, status. Blocked on real ticket issuance (§11) — nothing writes tickets to the
    ticketing DB today.
 3. **Check-ins** — a check-in record per ticket, and the door flow behind "Start check-in mode".
-   Everywhere a check-in figure would go currently prints an em dash, never a `0`: "nobody has
+   ⚠️ **The door flow EXISTS on the Attendees page and writes to localStorage** (2026-09-11,
+   `lib/checkin-store.ts` — one device's record, invisible to a second phone at the same door).
+   When this endpoint lands, `setCheckedIn` posts to it and the store file goes; the page's
+   controls, tile and status pill need no redesign. Everywhere ELSE a check-in figure would go
+   (the Events table, the overview tiles) still prints an em dash, never a `0`: "nobody has
    arrived" and "we do not record arrivals" are different statements and must not be conflated.
 4. **Earnings** — per-event settlement. ⚠️ **The organiser keeps the full ticket price.** The 2% is
    the participant's convenience fee, added on top at checkout (§13, amended 2026-08-19), so
@@ -778,9 +786,11 @@ this design must not have.
    work rather than disabling the control.** Applying that rule (2026-08-24), **Attendees and
    Earnings now each have a working per-event `FilterSelect`** bound to `?event=<id>` — which is
    also how `/event/[id]`'s organiser card deep-links into them (`manageAttendeesHref` /
-   `manageRevenueHref`). **Still disabled and still waiting on a backend:** the header search, the
-   Attendees ticket-type and status dropdowns, and the Earnings date range — those genuinely need an
-   organiser-scoped query endpoint, since the fixtures hold one sample rather than a full list.
+   `manageRevenueHref`), and **Attendees' ticket-type and status dropdowns work the same way**
+   (2026-09-11, `?ticket=` / `?status=`, options derived from the rows on screen). **Still disabled
+   and still waiting on a backend:** the header search and the Earnings date range — those
+   genuinely need an organiser-scoped query endpoint, since the fixtures hold one sample rather
+   than a full list.
    ⚠️ Both pages test `NotBuiltYet` against the **unfiltered** list; a filter matching nothing
    renders an `EmptyState` instead. Do not collapse those two states into one.
 8. **Event visibility (public/private)** — there is no visibility column. The console used to stamp
@@ -807,13 +817,16 @@ this design must not have.
     two currencies *within one event*. **The open question is unchanged and is the harder one:** an
     organiser running events in two currencies still has no honest single total on the Dashboard or
     the Earnings page. Do not read the locked field as this item being done.
+    **This is the organiser-totals half of §25**, which collects the same gap on the participant side
+    (the price filter and the price sort compare raw numbers across currencies). A rate source
+    answers both; **this item stays the source of truth for the totals question.**
 11. **The `tickets_sold` column has to become real first.** Revenue on this console is
     `tickets_sold × price`, and nothing writes that column today (§2b) — so on a live backend the
     Events table's Revenue column is currently `0 × price` for every row. That is the single
     highest-leverage item in this list: it is upstream of 2, 4, 9 and of §14's promise.
 
-12. **The organiser-authored extras have no columns — agenda, announcements, FAQ, offer name, and
-    an editable cover image.** The whole frontend shipped on 2026-08-24 (Gautham asked for it, and
+12. **The organiser-authored extras have no columns — agenda, announcements, FAQ, offer name, an
+    editable cover image, and (since 2026-09-11) the organisation name.** The whole frontend shipped on 2026-08-24 (Gautham asked for it, and
     chose frontend-only over a migration): `/event/[id]` renders all three lists publicly, the
     organiser authors them through `EditListModal`, and the offer name and cover image are fields in
     `EditEventModal`. **On 2026-08-31 the agenda and the FAQ also became sections of
@@ -830,6 +843,15 @@ this design must not have.
       **Do this one first**, then take `image_url` out of `EXTRA_KEYS`. (Still no *upload*: there is
       no file storage, so the field takes a URL and says so.)
     - **`offer_name`** — a `String(60)` column, plus `EventCreate`/`EventUpdate`/`EventOut`.
+    - **`organization_name`** — a `String(120)` column, plus the same three schemas. ⚠️ **This one
+      is NOT disabled in real mode, and it is the only extra that is not** (Gautham, 2026-09-11).
+      It is a **required** field on `/organizer/create` in every mode, because it is what
+      `/event/[id]` prints under "Organised by" and Gautham chose to build that frontend ahead of
+      the column. The loss is bounded rather than silent: the event page falls back to its own
+      `ORGANISER_NAME` placeholder whenever the field is absent, which is every event today. **Do
+      not copy the exception onto the other five** — an agenda that vanishes has nothing to fall
+      back on. Landing this column is also half of §1 (the other half is the "Verified · 40+
+      events" trust line, which is still hardcoded).
     - **`agenda`, `announcements`, `faq`** — three JSON columns (the shapes are already typed as
       `AgendaItem`, `Announcement` and `FaqItem` in `packages/types`), or one `organiser_content`
       JSON blob holding all three. ⚠️ **Not `content_generated`** — that is the AI agents' pipeline
@@ -840,6 +862,19 @@ this design must not have.
       `EventUpdate` alone would leave the create form silently lossy while the edit dialog worked,
       which is the confusing half-state this gate exists to avoid. (`announcements` is
       update-only by design — see the note at the bottom of this item.)
+
+13. **"in N days" on the upcoming-event chip has to be computed server-side.** The chip beside the
+    hero's title on `/organizer/events` (Gautham, 2026-09-11 — it replaced the "Paid" chip, which
+    said nothing this band exists to answer) reads `overview.next.inDays`, and that is a **fixture
+    number**: `lib/fixtures/organizer.ts` writes it, nothing derives it. In real mode there is no
+    overview at all, so `RealNextUpHero` shows no chip rather than counting the days itself.
+    ⚠️ **Do not "fix" that by subtracting dates in the browser.** A countdown computed from the
+    viewer's clock is wrong for anyone whose timezone differs from the event's, which on this
+    platform is most people, and it goes stale on a tab left open overnight — a plausible wrong
+    number, which is the kind item 9 above already warns about. It belongs on the same
+    `GET /organizer/{id}/overview` payload as the roll-ups, computed against the event's own
+    timezone. Until then `inDaysLabel` in the page only spells the number ("today", "in 1 day",
+    "in N days"); it does not work one out.
     - **All four need a migration script.** There is no Alembic: `create_all` only ever CREATES
       tables, so an added column 500s every query against the existing `platform_dev.db` until an
       idempotent `ALTER` has run. Copy `backend/scripts/migrate_add_currency_column.py` — it has the
@@ -1159,7 +1194,7 @@ module, still feeding the sample-data footer. A comment marks the spot and point
 Why it went, for anyone tempted to put a counter back:
 
 1. **It was a dead end.** A `<span>`, not a link — it named a number of chores and gave you nowhere
-   to go. The dashboard's *"Needs you today"* column is the same information **with working links**,
+   to go. The Events hero's *"Notifications"* column is the same information **with working links**,
    one screen below it.
 2. **It read as a message notification**, because it sat immediately beside the inert *"Search
    events, attendees…"* box and looked like a property of the search.
@@ -1199,7 +1234,7 @@ from scratch, not a move.
 
 **Match the existing dropdown, do not invent a second one.** `NavDropdown` and `AvatarMenu` in the
 same file already establish the pattern: `activeMenu` state keyed by a `MenuKey`, `closeAll()` on
-sibling hover, `LINEN` panel on a 1px `BORDER`, `rounded-xl shadow-xl`, and the **invisible bridge
+sibling hover, `LINEN` panel on a 1px `BORDER`, `rounded-lg shadow-xl`, and the **invisible bridge
 div** (`absolute -top-1 inset-x-0 h-1`) that stops `onMouseLeave` firing while the pointer crosses
 the `mt-1` gap. Add `"notifications"` to `MenuKey`. A panel of *rows that navigate* is not a
 `DropdownItem` (emoji + label), so it needs its own row component — that is fine, but it should
@@ -1261,3 +1296,64 @@ touching either):
 separated inside the one panel (the navbar is split by audience everywhere else — see the
 Participants / Organisers dropdowns — so mixing them in one flat list may read wrong), and what the
 empty state says.
+
+---
+
+## 25. `[FE+BE]` Multi-currency is displayed but not SUPPORTED — every comparison is a bare number
+
+**Raised while building the `/explore` price range (Gautham, 2026-09-08).** The gap is easy to miss
+because the *rendering* half is finished and looks complete: `lib/currency.ts` is the one formatter,
+every event carries its own `currency` column, and `/organizer/create` writes it. **What does not
+exist is any notion that ₹100 and $100 are different amounts.**
+
+Where it bites today, in order of how visible it is:
+
+1. **`/explore`'s price range** — the query is `price >= min AND price <= max` against the raw column
+   (`event_endpoints.py`), so a **$45** event matches "Up to ₹500" and a **₹4,000** one does not. The
+   filter's labels say ₹ because India is the launch market; that is a deliberate, informed choice,
+   **not a sign that the numbers were converted.** Its **Free** preset (`price = 0`) is the one bound
+   that is honest in every currency.
+2. **Sort by "Price: low to high"** (`/explore`) sorts the same bare numbers, so a mixed-currency
+   list is ordered by a meaningless key.
+3. **Organiser totals** — an organiser running events in two currencies has no honest single figure
+   on the Dashboard or Earnings. **This half is already specced in §19.10 and is the harder
+   question; do not solve it here.** §19.10 stays the source of truth for it.
+
+**Needed to close it, and none of it is decided:**
+
+- **A rate source.** A live FX API (a dependency and a key — Gautham's call), or a rates table an
+  admin maintains, or a hard "the catalogue is single-currency per market" rule that makes the
+  question go away. The third is the cheapest and may well be right for launch.
+- **A display currency for the viewer**, and whether a converted amount is ever shown as if it were
+  the price (it must not be — a ticket is charged in the organiser's currency, so a converted figure
+  is a *guide*, and needs to say so).
+- **Backend filter semantics** — either `price_min`/`price_max` grow a `currency` parameter and the
+  service converts before comparing, or search is scoped to one currency per market.
+
+⚠️ **Until this is decided, do not "fix" the ₹ labels on the price filter to a neutral "Min"/"Max".**
+Hiding the symbol makes the control look currency-agnostic when it is not; the symbol at least tells
+an Indian user which numbers the range is written for. Every place that compares a raw price carries
+a comment pointing here.
+
+---
+
+## 26. `[BE]` Contact person email on `/organizer/onboarding` is collected but not persisted
+
+**Added 2026-09-11.** The Contact Person section now has an Email field beside Full Name
+(`app/organizer/onboarding/page.tsx`), sent as `contact_email` in the `POST /user/{id}/organizer`
+body (`OrganizerProfileCreate` in `packages/api/src/organizer.ts`). The backend does not have this
+field: `OrganizerProfileCreate` in `backend/services/user/app/schemas/organizer_schemas.py` doesn't
+declare it, and `OrganizerProfile` (`backend/services/user/app/models/organizer_profile.py`) has no
+column for it, so Pydantic silently drops it — the value is typed, collected and thrown away.
+
+**To close it:**
+
+1. Add a `contact_email` column to `OrganizerProfile` (the model) — `String(255), nullable=False`,
+   same shape as `company_email`.
+2. Add `contact_email: EmailStr` to both `OrganizerProfileCreate` and `OrganizerProfileOut` in
+   `organizer_schemas.py`.
+3. Add `contact_email: string` to `OrganizerProfile` in `packages/types/src/index.ts` once the
+   backend returns it — not before, or the type promises a field the API never sends.
+4. No migration tooling exists for this service (no `alembic/` directory) — the table is created via
+   `Base.metadata.create_all`, so a fresh `platform_dev.db` picks the column up; an existing dev DB
+   needs the column added by hand or the file deleted and reseeded (`CLAUDE.md` §10).

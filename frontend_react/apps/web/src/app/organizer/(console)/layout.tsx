@@ -2,12 +2,13 @@
 //  Organiser console shell — the sidebar, the page header, and the auth guard
 //  every section shares.
 //
-//  ⚠️ WHY THIS IS IN A (console) ROUTE GROUP. `/organizer/create`,
-//  `/organizer/onboarding` and `/organizer/my-events` are siblings that render
-//  their own <Navbar/> and are NOT part of this console. A layout at
-//  `app/organizer/layout.tsx` would wrap them too and give each of them a second
-//  navbar plus a sidebar they have no use for. The group applies the shell to
-//  the four console sections only, and changes no URL.
+//  ⚠️ WHY THIS IS IN A (console) ROUTE GROUP. `/organizer/create` and
+//  `/organizer/onboarding` are siblings that are NOT part of this console —
+//  they render their own <Navbar/>. (`/organizer/my-events` used to as well;
+//  it's now a pure redirect to `/organizer/events`, alongside the `/organizer`
+//  redirect.) A layout at `app/organizer/layout.tsx` would wrap them too and
+//  give each a second navbar plus a sidebar they have no use for. The group
+//  applies the shell to the three console sections only, and changes no URL.
 //
 //  The section titles live here rather than in each page because the header is
 //  one continuous element across the console — a page that set its own would
@@ -27,17 +28,21 @@ import { ConsoleButton, EmptyState } from "@/components/organizer/ConsoleUI";
 import { useOrganiser, useOrganiserEvents } from "@/components/organizer/useOrganiser";
 import { SearchIcon } from "@/components/organizer/ConsoleIcons";
 
-/** Title + standfirst per section. `null` sub = the section needs no explaining. */
+/**
+ * Title + standfirst per section. `null` sub = the section needs no explaining.
+ *
+ * ⚠️ `/organizer/events` is the console's LANDING section since the Dashboard
+ * was folded into it (Gautham, 2026-09-07), so it wears the greeting rather than
+ * a section title — `HOME` below, resolved against the user's clock in the
+ * component. Its old "Events / Everything you've created…" pair went with the
+ * split: the rail already names the section, and the overview band that now
+ * opens the page says more than a standfirst could. **Do not put a title back
+ * on it** — the greeting and an h1 saying "Events" cannot both be the h1.
+ */
+const HOME = "/organizer/events";
+
 const SECTIONS: Record<string, { title: string; sub: string | null }> = {
-  "/organizer": { title: "", sub: null }, // greeting — filled in below
-  "/organizer/events": {
-    title: "Events",
-    // ⚠️ Says nothing about private events, on purpose: every event NewFind
-    // serves is public and discoverable, so describing a private one would
-    // promise a state no event can be in. See the note on `PRICE_FILTERS` in
-    // lib/organizer-rows.ts — the same reason there is no visibility filter.
-    sub: "Everything you've created — live, scheduled, drafted or done.",
-  },
+  [HOME]: { title: "", sub: null }, // greeting — filled in below
   "/organizer/attendees": {
     title: "Attendees",
     sub: "Who's coming, what they paid, and who walked in. Filter to one event to run the door.",
@@ -53,11 +58,9 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
   // Browser-only: the server has no user clock. See lib/use-today.ts.
   const today = useToday();
 
-  const section = SECTIONS[pathname] ?? SECTIONS["/organizer"];
+  const section = SECTIONS[pathname] ?? SECTIONS[HOME];
   const title =
-    pathname === "/organizer"
-      ? `${today?.greeting ?? "Welcome"}, ${name.split(" ")[0]}`
-      : section.title;
+    section.title || `${today?.greeting ?? "Welcome"}, ${name.split(" ")[0]}`;
 
   // Nothing until zustand has rehydrated AND we know whether this person is an
   // organiser — see useOrganiser. Rendering the shell first would flash a
@@ -100,7 +103,12 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
     <div className="min-h-screen" style={{ backgroundColor: "var(--brand-bg)" }}>
       <Navbar />
 
-      <div className="flex items-start">
+      {/* Column below lg so ConsoleSidebar's scrolling strip sits ABOVE the
+          content; a row only from lg, where the strip yields to the rail.
+          As a plain row the strip was a flex sibling of <main> and, with
+          `flex-1` (basis 0) on main, took every pixel — the console rendered
+          as a ~0px-wide column on phones. */}
+      <div className="flex flex-col lg:flex-row lg:items-start">
         <ConsoleSidebar badges={{ "/organizer/events": events.length }} />
 
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-7 lg:py-8">
@@ -108,12 +116,11 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
             {/* ── Page header ── */}
             <header className="flex items-end justify-between gap-5 flex-wrap">
               <div className="min-w-0">
-                <div className="text-[15px]" style={{ color: "var(--brand-hint)" }}>
-                  {/* Empty on the server pass, filled on hydration. The
-                      non-breaking space holds the line's height either way, so
-                      the heading below does not jump. */}
-                  {today?.label ?? " "}
-                </div>
+                {/* ⚠️ NO DATE LINE ABOVE THE HEADING (Gautham, 2026-09-11). A
+                    "Friday 11 September" eyebrow used to sit here, on every
+                    console section. It went: the person reading the console
+                    knows what day it is, and the line only pushed the h1 down.
+                    The greeting still reads the user's clock — see useToday. */}
                 {/* ⚠️ THE SITE'S SECTION-HEADING RECIPE, not a dashboard title
                     (Gautham, 2026-08-22): `font-extrabold` + `-0.5px` tracking +
                     a clamp, exactly as EventsCarousel sets "Events in {city}"
@@ -122,7 +129,7 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
                     tracking-[-0.01em]` — near enough to the public heading to
                     look like a mistake rather than a difference. */}
                 <h1
-                  className="font-extrabold mt-1 tracking-[-0.5px]"
+                  className="font-extrabold tracking-[-0.5px]"
                   style={{ fontSize: "clamp(24px, 4vw, 32px)", color: "var(--brand-text)" }}
                 >
                   {title}
@@ -143,10 +150,16 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
                     is not ready. Disabled, not hidden, so the header keeps its
                     designed shape. */}
                 <div
-                  className="hidden sm:flex items-center gap-2 rounded-xl px-3.5 py-2.5 min-w-[240px]"
+                  className="hidden sm:flex items-center gap-2 rounded-lg px-3.5 py-2.5 min-w-[296px]"
                   style={{
                     backgroundColor: "var(--brand-surface)",
-                    border: "1px solid var(--brand-nav-border)",
+                    /* Brand black, not the pale nav-border grey (Gautham,
+                       2026-09-11) — the box sits on --brand-surface, which
+                       equals the page ground in light mode, so a 1.55:1 line
+                       left it floating. --brand-text follows the theme, so it
+                       is the linen-safe near-black here and the warm off-white
+                       in dark mode. */
+                    border: "1px solid var(--brand-text)",
                     color: "var(--brand-muted)",
                     opacity: 0.85,
                   }}
@@ -158,9 +171,9 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
 
                 {/* ⚠️ No "N need you" pill here — removed 2026-09-02 (Gautham).
                     It was a <span>, not a link, so it named a number of chores
-                    and gave you nowhere to go, while the dashboard's "Needs you
-                    today" column said the same thing WITH links one screen
-                    below. Its two signals (refund requested, awaiting payment)
+                    and gave you nowhere to go, while the "Notifications"
+                    column on the Events hero said the same thing WITH links one
+                    screen below. Its two signals (refund requested, unpaid)
                     are owed to the navbar's notification bell instead —
                     TODO.md §24. Do not reinstate a counter here. */}
               </div>

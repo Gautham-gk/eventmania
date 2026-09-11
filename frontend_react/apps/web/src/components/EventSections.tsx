@@ -129,7 +129,7 @@ export function AnnouncementsSection({
         {items.map((a) => (
           <article
             key={a.id}
-            className="rounded-2xl px-5 py-4"
+            className="rounded-lg px-5 py-4"
             style={{ border: "1px solid var(--brand-border)" }}
           >
             {/* The date leads: an announcement's first question is "how old is

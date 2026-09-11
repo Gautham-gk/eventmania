@@ -57,8 +57,9 @@ Usage: `style={{ color: "var(--brand-text)" }}`, or the `BRAND` string map from 
 Tailwind arbitrary values (`text-[var(--brand-hint)]`). **Alpha tints need
 `color-mix(in srgb, var(--brand-green) N%, transparent)`** — a CSS var can't take a hex-alpha suffix.
 
-**Intentionally not themed:** `Footer.tsx`, the `HeroCarousel` letterbox, and semantic accents (badge
-colours, star gold, error red, status green/amber, Google/Facebook brand colours).
+**Intentionally not themed:** `Footer.tsx`, `/auth`'s left panel (green fill in both themes, so its
+logo/heading/blurb all take `--brand-on-green`), the `HeroCarousel` letterbox, and semantic accents
+(badge colours, star gold, error red, status green/amber, Google/Facebook brand colours).
 
 Theme plumbing: `providers/theme-provider.tsx`, persisted to `eventmind-theme`, with a no-flash
 `<head>` script in `layout.tsx`. A neutral dark-gray alternate sits commented out in `globals.css` —
@@ -94,7 +95,7 @@ now on the scale below, and **so is anything new.** Sizes come from `EventsCarou
 |---|---|---|
 | Section / page heading | `clamp(…)` **extrabold**, `tracking-[-0.5px]` | `EventsCarousel`'s "Events in {city}"; the console `h1` |
 | Card or row title | **20px bold** | the event card's title; a console table row |
-| Big figure | **32px extrabold**, `-0.5px` | `StatTile`; the earnings hero goes to 44 |
+| Big figure | **32px extrabold**, `-0.5px` | `StatTile` — every console figure, the earnings total included |
 | Body, table cells | **17–18px** | card meta row 18px; console cells 17px |
 | Controls | buttons **18px bold**, filter tabs **20px semibold** | the card's "View details" CTA |
 | Labels, counts, sub-lines | **15px** — the floor | `MicroLabel`, `CountBadge` |
@@ -105,14 +106,13 @@ live opt-out left in the app is `EventCard.tsx` (dead code) and one comment in `
 
 ## Shape
 
-**⚠️ Every button, chip, toggle and filter control is a rounded rectangle. `rounded-full` is not a
-button shape.** The reference is the category chip on the event card — `rounded-lg`, the silhouette
-exported as `TAG_SHAPE`.
+**⚠️ ONE RADIUS, WHOLE APP — `rounded-lg` (8px)** (Gautham, 2026-09-11). Every button, input,
+chip, tag, card, panel, dropdown and modal wears it. **No scale, no exceptions** — a second
+radius is drift even where it looks fine alone. `TAG_SHAPE` is the reference; rejected
+alternatives in `DESIGN_NOTES.md` §3.
 
-- **Small controls** (filter chips, category chips, date presets, segmented items): `rounded-lg`. Inside a bordered track, the track is `rounded-lg` and its items `rounded-md` so the inner radius nests.
-  - **⚠️ The FILTER TAB is the standing exception, and there are now three of them on one silhouette:** `EventsCarousel`'s two tab rows, the card's "View details" CTA, and the organiser console's `Tabs` + `FilterSelect` — all `rounded-xl` (Gautham, 2026-08-21 and 2026-08-22). **Move them together or not at all, and do not "correct" any of them to `rounded-lg`.**
-- **Standard buttons** (CTAs, form submits, search/city/sort controls): `rounded-xl` or `rounded-2xl`.
-- **The only legitimate `rounded-full` elements** are things that aren't buttons-with-labels: the round icon controls in `EventActions.tsx`, avatars, count badges, carousel dots, and a toggle switch's knob + track. **Do not add to this list without asking.**
+- **Nesting is the one derived step.** An item inset in a bordered track by `p-1`/`p-1.5` takes `rounded-md` so its corner nests instead of poking past the outer one — `SegmentedControl`, `OrganiserViewToggle`, `Rail`, `EventStatus`' menu. **Behind `p-4` or more it does NOT apply:** the padding already separates the corners.
+- **`rounded-full` is not a button shape.** Legitimate only for non-label elements: `EventActions`' round icon controls, avatars, count badges, carousel dots, spinners, progress tracks, slider handles, a switch's knob + track. **Do not extend that list without asking.** **A pill with a text LABEL is a `rounded-lg` rectangle.**
 
 ## Borders
 
@@ -122,26 +122,26 @@ exported as `TAG_SHAPE`.
 - `--brand-border` is still correct for **non-controls**: card/panel borders, dividers, `border-t`/`border-b` rules, and form text inputs inside a card. **Do not sweep those to 2px.**
 - **⚠️ A CARD is not a control.** The `SeeAllTile` in the carousels sits in the same grid as the event cards and must look identical to them — `2px solid transparent` at rest, green on hover, the transparent border holding the space so it never resizes. It must read as a card, not as a big button.
   - **⚠️ The `/event/[id]` HERO ROW is the one place the token itself changes** (Gautham, 2026-08-31): every control there — Back, wishlist, share, edit, duplicate, cancel, the status chip, the view toggle, Publish — wears `2px var(--brand-hint)` via `EventActions`' exported `HERO_EDGE`, so the edge is brand-black in light and brand-white in dark. `--brand-control-border` is a mid tone in both and reads as no edge at all over a photograph. **Approved and scoped to that row — do not sweep it onto outline controls elsewhere, and do not "correct" it back.** ⚠️ That edge also **greens under the pointer**, on every control in the row — the status chip and the view toggle's track included (`HERO_EDGE_HOVER`, and `hoverEdge` for the round ones, whose ring follows the glyph's tone and so goes *terracotta* on the destructive one).
-  - **Two standing exceptions**, both approved and both because a 1px `--brand-border` read as no border at all: `/explore`'s filter sidebar and `FeatureBand`'s cards carry `2px --brand-control-border` at rest. This is not licence to sweep card borders generally — a card that sits in a grid *beside event cards* still follows the `SeeAllTile` rule above.
+  - **Three standing exceptions**, all approved and all because 1px `--brand-border` read as no border at all: `/explore`'s filter sidebar, `FeatureBand`'s cards, and the `compact` `DetailStickyShell`'s top edge (`/organizer/create` only) carry `2px --brand-control-border` at rest. Not licence to sweep card borders or dividers generally — a card in a grid *beside event cards* still follows the `SeeAllTile` rule above.
 - **First choice is not to hand-write a border at all.** There is no shared Button component, which is why this treatment had to be applied in ~20 places across 12 files. If you add another outline control, **copy an existing one rather than inventing a third width.**
 
 Dark theme is deliberately not lifted — the blending problem is light-only. See `DESIGN_NOTES.md` §7.
 
 ## Hover, spacing, tone
 
-- **Hover:** background → green, text/icon → linen. Used throughout the navbar, dropdowns and cards. Maintain it for new interactive elements. **One approved exception:** `FeatureBand`'s four **organiser** tiles hover **terracotta**, because each half of that band is skinned by one accent and terracotta is the organisers' (Gautham, 2026-08-19). Participant tiles still hover green. Do not sweep the organiser tiles back to green.
+- **Hover:** background → green, text/icon → linen. Used throughout the navbar, dropdowns and cards. Maintain it for new interactive elements. **Two approved exceptions,** both terracotta: (1) `FeatureBand`'s four **organiser** tiles, because each half of that band is skinned by one accent and terracotta is the organisers' (Gautham, 2026-08-19) — participant tiles still hover green, do not sweep the organiser tiles back; (2) every **Remove** button, via `REMOVE_BUTTON` in `lib/controls.ts` (Gautham, 2026-09-11) — an ordinary outline with `--brand-text` at rest, filling terracotta with a white label on hover **and `active`**, so a finger gets the same answer. Import it, never hand-write the look, and never put terracotta back on the resting label.
   - **⚠️ A TABLE ROW takes an 8% green WASH, not the solid fill** (`.nf-console-row` in `globals.css`) — a row carries status pills and a progress bar, which a solid ground would swallow. Its controls still take the full rule. **The trap that made this necessary: an inline `style` colour BEATS a `hover:` rule**, so the console's every control was inert to the pointer until its tones moved to classes. Third time this has bitten — see also `FeatureBand`'s audience badge and `FilterSelect`'s menu items. **Colour anything that hovers with CLASSES.**
 - **Navbar** 72px tall. **Page content and navbar share the same horizontal padding** — import `GUTTERS`.
-- **Cards** `rounded-2xl`. **Buttons** `rounded-xl` / `rounded-2xl`.
 - **Copy:** conversational but professional. Avoid jargon, keep labels short — "Claim Free Ticket", not "Register for Free Event".
 
 ## Responsiveness
 
-**Verified by measurement, not by eye** — `document.scrollWidth === clientWidth` on `/`, `/explore`,
-`/event/[id]` and `/community/[slug]` at **320 · 375 · 414 · 768 · 1024 · 1100 · 1280 · 1440 ·
-1920**. This had *not* been true before: the claim sat in the docs while eleven surfaces carried a
-flat `px-12`. **Re-run that sweep after any layout change — 1024px especially, where the navbar
-breaks first.**
+**Verified by measurement, not by eye** — `document.scrollWidth === clientWidth` on every route at
+**320 · 375 · 414 · 768 · 1024 · 1100 · 1280 · 1440 · 1920**. The sweep is
+`pnpm --filter @eventmind/web sweep` (`scripts/responsive-sweep.mjs`; `--shots` for screenshots,
+`--email`/`--password` for the signed-in routes; needs the dev server up). **Re-run it after any
+layout change — 1024px especially, where the navbar breaks first.** The probe also names the
+elements that cross the edge, so an OVERFLOW line points at the culprit.
 
 > ⚠️ **A wider breakpoint does NOT automatically beat a narrower one in this Tailwind v4 build.** Both arbitrary (`min-[1400px]:`) and custom registered (`band:`) media variants are emitted **before** the built-in screens, so `band:grid-cols-7 lg:grid-cols-4` on one element renders **four** columns at 1600px — both match, and `lg` is later in the stylesheet. **Fix by making the ranges disjoint, not by reordering the class string:** bound every narrower step with `max-band:` (`max-band:lg:grid-cols-4 band:grid-cols-7`). `FeatureBand` is the worked example, `--breakpoint-band: 1400px` is registered in `globals.css`, and the trap is written up beside it. This shipped once and read as a layout bug. **Verify in the compiled CSS — do not assume the sort order.**
 
@@ -153,4 +153,11 @@ Standard patterns:
 - **Form rows:** `grid-cols-1 sm:grid-cols-N`. A bare `grid-cols-3` puts three ~100px cells on a phone.
 - **Wide tables:** keep the width, wrap in `overflow-x-auto` with `min-w-[720px]`. Six columns have no honest narrow layout; scrolling beats crushing.
 - **Full-bleed hero titles:** one line via `heroTitleSize()` on `lg+`; below `lg` the `.hero-title` rule in `globals.css` lets it wrap to 3 lines instead.
+- **Hover-revealed controls must also exist on touch.** The card overlay (share, wishlist, tags) uses `EventsCarousel`'s `TOUCH_REVEAL` — `opacity-0 [@media(pointer:coarse)]:opacity-100` — so a phone shows them and a mouse still gets the reveal. A hover-opened menu also needs a tap toggle (the navbar dropdowns and avatar menu do) because 1024px is an iPad — **and its `onMouseEnter`/`onMouseLeave` must be wrapped in `hoverCapable()` (`lib/pointer.ts`)**: a tap synthesises mouseenter before click, so unguarded it opens and closes the menu in one tap. A hover *tooltip* that opens sideways is `hidden lg:block`; every hover tooltip is also `[@media(hover:none)]:hidden` (no mouseleave follows a tap, so it would stick).
+- **Touch targets: 44px under a finger, geometry unchanged under a mouse.** `[@media(pointer:coarse)]:w-11 …` plus a matching negative margin (`EditPencil`, the hero dots, `EventActions`' `sm`). **Never enlarge the mouse render.**
+- **A control row that only fits by scrolling sideways is a dropdown below `lg` and on touch** — `EventsCarousel`'s `FilterTabs` (native `<select>` in the tab's silhouette, gated on `lg:[@media(pointer:fine)]`). A hidden scrollbar does not tell a finger the row scrolls.
+- **Forms on touch render at 16px** via the coarse-pointer rule under the font-size floor in `globals.css` (iOS zooms for less); desktop keeps 15px. `touch-action: manipulation` + no tap highlight on controls live beside it.
+- **Full-height layouts use `dvh`, not `vh`** (`h-[100dvh]`, `calc(100dvh-…)`): a phone's URL bar makes `100vh` taller than the visible screen, pushing the bottom control (a chat composer, the menu's last item) off it.
+- **Two nowrap chips in one row need `flex-wrap`** — `TAG_SHAPE` is nowrap by design, and a detail card's chip row is wider than a stacked 320–375px card. Without it the overflow-hidden shell clipped the second chip silently, which the scroll-width sweep cannot see.
+- **A back button beside a heading is `shrink-0`, and the heading block `min-w-0`** — otherwise the 36px circle is the thing that squashes.
 - When stacked, `/event/[id]` orders the **booking card above the description** so price/date/Book Now are visible without scrolling past the reviews.

@@ -14,18 +14,23 @@
 //  trap, same shape, as `EditEventModal`'s `cityOptions`.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/* ⚠️ ALPHABETICAL, WITH "Other" PINNED LAST (Gautham, 2026-09-08). A menu of a
+   dozen words has no meaningful order but the one a reader can scan, and "Other"
+   is not a peer of the others — it is the escape hatch, so it sits at the foot
+   rather than between "Networking" and "Sports". Same rule in LANGUAGES below.
+   Keep new entries in place; do not re-sort by "importance". */
 export const CATEGORIES = [
-  "Technology",
-  "Creative",
+  "Arts & Culture",
   "Business",
-  "Summit",
-  "Networking",
+  "Creative",
+  "Education",
+  "Food & Drink",
   "Gaming",
   "Health & Wellness",
-  "Education",
-  "Arts & Culture",
+  "Networking",
   "Sports",
-  "Food & Drink",
+  "Summit",
+  "Technology",
   "Other",
 ];
 
@@ -34,15 +39,16 @@ export const EVENT_TYPES = ["In-Person", "Online", "Hybrid"] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
 
+/** Alphabetical, "Other" last — see the note on CATEGORIES. */
 export const LANGUAGES = [
+  "Arabic",
+  "Dutch",
   "English",
   "French",
-  "Dutch",
   "German",
-  "Spanish",
-  "Portuguese",
-  "Arabic",
   "Hindi",
+  "Portuguese",
+  "Spanish",
   "Other",
 ];
 

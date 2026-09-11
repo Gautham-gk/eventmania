@@ -196,19 +196,29 @@ python backend\scripts\sync_ticketmaster.py             # full backend must be r
 ```powershell
 cd "eventmind/frontend_react"
 pnpm install                                    # first time only
-pnpm --filter @eventmind/web dev:webpack        # http://localhost:3000
+pnpm --filter @eventmind/web dev                # http://localhost:3000 (Turbopack)
 ```
 
 `apps/web/.env.local` must exist with `NEXT_PUBLIC_API_URL=http://localhost:8000` (copy
 `.env.local.example`).
 
-> **⚠️ On low-RAM (8 GB) machines use `dev:webpack`, NOT plain `dev`.** Plain `dev` uses Turbopack,
-> which spawns a large parallel worker pool; on 8 GB that exhausts physical RAM, Windows starts
-> swapping, and **the entire laptop hangs** (unresponsive mouse — disk thrashing, not a crash). The
-> workers then die with `Zone Allocation failed / JavaScript heap out of memory`, leaving orphaned
-> `node` processes that pile up across runs. `--max-old-space-size` does **not** help — the limit is
-> physical RAM, not the heap. `dev:webpack` spawns ~3 workers instead of hundreds.
+> **⚠️ If the dev server OOMs: delete `.next`, retry, and only THEN fall back to `dev:webpack`.**
+> Deleting is the first move, not the last — see why below.
 >
+> **Turbopack works on this 8 GB machine.** Retested 2026-09-08 on Next 16.2.6: `Ready in 4.4s`,
+> **4** node processes (not the hundreds seen in June), and roughly **12x faster than webpack** —
+> `/organizer/events` cold 12.95s → 1.07s, and HMR per file save ~3s (11.9s worst) → **under 1s**.
+> That HMR number is the one that matters; it is paid on every save, not once per route.
+>
+> **Why deleting `.next` comes first:** the June 2026 failure (worker pool exhausting physical RAM,
+> hanging the whole laptop) is most likely explained by a **stale 502 MB `.next/dev/cache/turbopack`**
+> left behind by an older Next version. Clearing it is what made this retest succeed.
+>
+> **Turbopack is NOT the lighter option** — ~1184 MB across its 4 processes vs webpack's 964 MB in
+> one. It fits, but the margin is thin: it wants ~2.5 GB free at launch, so close what you can first.
+> `--max-old-space-size` helps **neither** bundler — Turbopack allocates in Rust, outside the V8 heap.
+>
+> `dev:webpack` stays in `apps/web/package.json` as the fallback and still works.
 > This has **nothing to do with the backend** — the dev server uses the same memory either way.
 
 **Add a package:** `pnpm --filter @eventmind/web add <name>` (or `--filter @eventmind/api`).
@@ -289,26 +299,30 @@ checklist: `COMPONENTS.md` and `TODO.md` §12.
 | `components/EventIcons.tsx` | **The** glyph set — every icon in the app |
 | `components/EventActions.tsx` | **The** round controls — share / wishlist / back / arrow, plus the organiser's edit / duplicate / cancel |
 | `components/ModalShell.tsx` | **The** dialog chassis — overlay, panel, title row, close, Escape, click-outside, portal |
-| `components/FormControls.tsx` | **The** form primitives — `FormField` and `inputCls` |
+| `components/FormControls.tsx` | **The** form primitives — `FormField`, its measured `width` scale, and `inputCls` |
 | `components/EventBadges.tsx` | **The** tags — status tags, the category chip, and `CardTagRow` (the card's chip overlay) |
 | `components/DetailCard.tsx` | **The** right-column card on both detail pages, plus `DetailStickyBar` |
 | `components/Rail.tsx` | **The** full-bleed horizontal card rail |
 | `components/Reviews.tsx` | **The** "Attendee Reviews" block |
 | `lib/currency.ts` | **The** price formatter — never hand-write a currency symbol |
 | `lib/csv.ts` | **The** CSV download — never hand-roll `values.join(",")` |
+| `lib/checkin-store.ts` | **The** door record behind Attendees' check-in controls — localStorage, this device only, until `TODO.md` §19.3 |
 | `lib/dev-flags.ts` | **The** developer escape hatches — every one gated on `NODE_ENV === "development"` **and** an env var |
 | `lib/layout.ts` | `GUTTERS` — **the** standard horizontal padding |
+| `lib/pointer.ts` | `hoverCapable()` — guards `onMouseEnter`-driven *state* (menus) so a tap does not open-then-close it |
 | `lib/share-event.ts` | **The** share pipeline, both kinds |
 | `lib/card-adapters.ts` | API shape → card shape; **the** one place status tags are decided, and `cardImageUrl` |
 | `lib/event-extras.ts` | The five organiser-authored extras and their readers — **no backend column for any of them** |
-| `lib/event-options.ts` | **The** choice lists behind the event form — category, format, language, audience — shared by create and edit |
+| `lib/event-options.ts` | **The** choice lists behind the event form — category, format, language, audience — shared by create and edit. Alphabetical, "Other" last |
+| `lib/image-upload.ts` | The browser-side cover-image upload (downscale → `data:` URL) and `isImageSrc`, the one test both event forms apply |
 | `lib/community-events.ts` | `splitCommunityEvents()` — a community's events → upcoming / previous |
 
 ### Cards, grids and rails
 
 | File | What it is |
 |---|---|
-| `components/EventsCarousel.tsx` | Main events grid + online section; exports `EventCardItem`, the card home / `/explore` actually use |
+| `components/EventsCarousel.tsx` | Main events grid + online section; exports `EventCardItem` (the card home / `/explore` / `/dashboard` actually use), `CARD_GRID` and `CARD_CTA` |
+| `app/dashboard/page.tsx` | My Tickets / My Wishlist / My Events / Profile — the three lists are `EventCardItem`s on `CARD_GRID`; the Profile tab's camera badge opens `ProfilePictureModal` |
 | `components/CategoryGrid.tsx` | "Browse by category" rail above the footer |
 | `components/FeatureBand.tsx` | "Why NewFind" — participant tiles left, organiser tiles right |
 | `components/HeroCarousel.tsx` | Split hero on home — copy left, image right |
@@ -333,32 +347,39 @@ checklist: `COMPONENTS.md` and `TODO.md` §12.
 | `components/Footer.tsx` | Site footer — **intentionally not themed** |
 | `components/brand/*` | Official logo, wordmark, lockup, loader |
 
-### The organiser console (`/organizer`)
+### The organiser console (`/organizer/events`)
 
-Four sections under one shell — Dashboard, Events, Attendees, Earnings — see `TODO.md` §19 for what
-is real and what waits on a backend. **Two sections were removed on 2026-09-01 and neither comes
-back without asking:** *Settings* (its payment terms are now a card at the foot of Earnings; its
-other three groups are gone) and *Event rooms* (attendee conversation belongs to the chat surfaces,
-and the organiser side of that is the backend's job — `TODO.md` §19.1).
+Three sections under one shell — Events, Attendees, Earnings — see `TODO.md` §19 for what is real
+and what waits on a backend. **Events is the landing section**, and `/organizer` is a redirect to it.
+**Three sections have been removed and none comes back without asking:** *Settings* (2026-09-01 — its
+payment terms are now a card at the foot of Earnings; its other three groups are gone), *Event rooms*
+(2026-09-01 — attendee conversation belongs to the chat surfaces, and the organiser side of that is
+the backend's job, `TODO.md` §19.1), and *Dashboard* (2026-09-07 — it and Events rendered the same
+rows off the same `toConsoleRows`, so its overview band moved to the top of Events).
 
 | File | What it is |
 |---|---|
+| `app/organizer/page.tsx` | `/organizer` → `/organizer/events`. **Outside the `(console)` group on purpose** — inside it, a second file would resolve to the same URL |
 | `app/organizer/(console)/layout.tsx` | The console shell: rail, page header, **both** auth gates |
-| `components/organizer/ConsoleUI.tsx` | **Every shape the four sections share** — card, stat tile, tabs, pill, table shell, empty states |
+| `components/organizer/ConsoleUI.tsx` | **Every shape the three sections share** — card, stat tile, tabs, pill, table shell, empty states |
 | `components/organizer/ConsoleSidebar.tsx` | The section nav — one list, two shapes |
 | `components/organizer/ConsoleIcons.tsx` | Console chrome glyphs — nav, actions, pagination |
 | `components/organizer/useOrganiser.ts` | Who is running the console and whether they may be here |
 | `lib/organizer-rows.ts` | `Event` → the console row, plus the Events page's filter and sort |
 | `lib/fixtures/organizer.ts` | Dummy console data — **derived from `dummyMyEvents`, never hand-written** |
-| `lib/use-today.ts` | Today's date + greeting for the console header |
+| `lib/use-today.ts` | Time-of-day greeting for the console header |
 | `components/organizer/OrganiserViewToggle.tsx` | Organiser view ⇄ participant preview, in the hero's control row |
 | `components/organizer/OrganiserEventCard.tsx` | The right-column card an organiser gets **instead of** `BookingCard` |
 | `components/organizer/EventStatus.tsx` | The Draft / Live / Registration closed / Cancelled state — editable for the organiser, fixed for everyone else — and `lifecycleOf()` |
 | `components/organizer/EditEventModal.tsx` | "Edit details" — the organiser's edit dialog |
-| `components/organizer/ListEditor.tsx` | **One** repeating-row editor behind all three authored lists, plus their `SPEC` |
-| `components/organizer/EditListModal.tsx` | The dialog and the save wrapped around `ListEditor` |
+| `components/organizer/ListEditor.tsx` | **One** repeating-row editor behind all three authored lists, plus their `SPEC` and the read-only `ListSummary` |
+| `components/organizer/ListEditorModal.tsx` | **The** dialog every authored list is edited in — event page and create form |
+| `components/organizer/EditListModal.tsx` | What "Save changes" means on `/event/[id]`: one mutation behind `ListEditorModal` |
 | `components/organizer/DuplicateEventModal.tsx` | "Duplicate event" — copy the plan into a fresh draft |
 | `components/organizer/PublishEventModal.tsx` | "Publish event" — the confirmation on a draft |
+| `components/organizer/CoverImageField.tsx` | **The** cover-image control — preview, upload, or a pasted link — shared by create and edit |
+| `components/organizer/CoverImageModal.tsx` | The create form's dialog around that control — draft, validate, "Save changes" |
+| `components/organizer/AudienceChip.tsx` | **The** Target Audience chip — shared by create and edit |
 | `components/organizer/CancelEventModal.tsx` | "Cancel event" — the confirmation |
 | `components/EventSections.tsx` | The three authored blocks in `/event/[id]`'s left column — **public**, the edit control is not |
 
@@ -395,7 +416,7 @@ opens `/organizer/create` with no verified organiser profile and adds a dev stri
 
 1. Delete `lib/dev-flags.ts`.
 2. In `app/organizer/create/page.tsx` — drop the import, reset `verificationChecked` to `useState(false)`, delete the early return in the gate effect, and put the back button back to a plain `router.back()`.
-3. In `app/organizer/onboarding/page.tsx` — drop the import, delete the early return that suppresses the verified-organiser redirect, and delete the dashed dev strip above the header.
+3. In `app/organizer/onboarding/page.tsx` — drop the import, delete the early return that suppresses the verified-organiser redirect, and delete the terracotta-edged dev strip above the header.
 4. Remove `NEXT_PUBLIC_SKIP_ORGANIZER_VERIFICATION` from `.env.local.example` and from every developer's `.env.local`.
 5. Delete the `lib/dev-flags.ts` row from `COMPONENTS.md` and from this file's *Component Registry*, and `CLAUDE.md`'s guideline 13 with them.
 

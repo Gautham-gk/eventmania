@@ -66,7 +66,7 @@ const TONE_FG: Record<Tone, string> = { green: GREEN, terracotta: BRAND.terracot
 // does not resolve conflicting utilities by string order (same trap CLAUDE.md
 // documents on breakpoints). One utility, both properties.
 const BTN = 'rounded-full flex items-center justify-center transition-[border-color,transform] active:scale-90 disabled:cursor-not-allowed'
-const PILL = 'text-[16px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap'
+const PILL = 'text-[16px] font-semibold px-2 py-0.5 rounded-lg whitespace-nowrap'
 
 /**
  * The same pill for a label that is a SENTENCE, not a verb — the lifecycle
@@ -92,7 +92,7 @@ const PILL = 'text-[16px] font-semibold px-2 py-0.5 rounded-full whitespace-nowr
  * right edge and passes it in — see `EventStatus.tsx`'s `useRoomToRightEdge`.
  */
 const PILL_WIDE =
-  'text-[16px] font-semibold leading-snug text-left px-3 py-2 rounded-2xl whitespace-normal w-max max-w-[min(280px,calc(100vw-2rem))]'
+  'text-[16px] font-semibold leading-snug text-left px-3 py-2 rounded-lg whitespace-normal w-max max-w-[min(280px,calc(100vw-2rem))]'
 
 /** Which side the hover label sits on, so it always grows away from the edge
  *  the button is anchored to. 'bottom' drops it underneath instead — use that
@@ -128,8 +128,8 @@ const LABEL_POS: Record<LabelSide, string> = {
  * caller's, because a status chip, a picked segment and a CTA do not share one.
  *
  * ⚠️ IT CARRIES NO RADIUS, deliberately. Every caller states its own —
- * `rounded-xl` on an outer control, `rounded-lg` on a segment nested inside
- * one. Putting `rounded-xl` in here and overriding it at the segment would be
+ * `rounded-lg` on an outer control, `rounded-md` on a segment nested inside
+ * one. Putting `rounded-lg` in here and overriding it at the segment would be
  * two conflicting utilities in one class string, which Tailwind v4 does NOT
  * resolve by string order (CLAUDE.md's responsiveness section documents the
  * same trap on breakpoints).
@@ -200,7 +200,11 @@ type Size = 'sm' | 'lg'
  *  wishlist — and those surfaces are settled; outlining every heart and share
  *  button in the app is not what was asked for. */
 const SIZES: Record<Size, { btn: string; icon: string; edge?: string }> = {
-  sm: { btn: 'w-8 h-8', icon: 'w-4 h-4' },
+  // 'sm' grows to 40px under a COARSE pointer (a finger): 32px is under every
+  // platform's touch minimum, and on touch these are always visible (see
+  // `TOUCH_REVEAL`), so they are the card's primary controls there. The glyph
+  // stays 16px; a mouse still gets the 32px circle exactly as before.
+  sm: { btn: 'w-8 h-8 [@media(pointer:coarse)]:w-10 [@media(pointer:coarse)]:h-10', icon: 'w-4 h-4' },
   lg: { btn: 'w-12 h-12', icon: 'w-6 h-6', edge: HERO_EDGE },
 }
 
@@ -238,7 +242,10 @@ export function ActionLabel({
 }) {
   return (
     <span
-      className={`${wide ? PILL_WIDE : PILL} absolute z-20 pointer-events-none ${LABEL_POS[side]}`}
+      /* Hidden where nothing hovers: a tap synthesises mouseenter but no
+         mouseleave follows, so the label would stay pinned beside the control
+         that was just tapped. The control's `aria-label` carries the name. */
+      className={`${wide ? PILL_WIDE : PILL} [@media(hover:none)]:hidden absolute z-20 pointer-events-none ${LABEL_POS[side]}`}
       // An inline `maxWidth` outranks the class, which is the intent here — it
       // is a measurement, not a hover state, so none of the inline-colour trap
       // this repo keeps hitting applies.
@@ -570,8 +577,12 @@ export function EventWishlistButton({
             price: item.price,
             imageUrl: item.imageUrl,
             badge: item.badge,
-            // Events carry an array, communities a single value — take whichever.
+            // Events carry an array, communities a single value — save BOTH, so
+            // the wishlist row can render every tag the card showed and still
+            // read a community's lone tag. `badgeType` also keeps rows written
+            // before the array existed working; see the note on WishlistItem.
             badgeType: item.badgeTypes?.[0] ?? item.badgeType,
+            badgeTypes: item.badgeTypes,
             isSoldOut: item.isSoldOut,
             category: item.category,
             memberCount: item.memberCount,

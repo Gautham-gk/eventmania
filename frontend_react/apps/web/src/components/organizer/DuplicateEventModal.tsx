@@ -82,7 +82,7 @@ export function DuplicateEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3.5 rounded-2xl text-[16px] font-bold transition-colors"
+            className="flex-1 py-3.5 rounded-lg text-[16px] font-bold transition-colors"
             style={{ border: "2px solid var(--brand-control-border)", color: "var(--brand-text)" }}
           >
             Cancel
@@ -91,7 +91,7 @@ export function DuplicateEventModal({
             type="button"
             onClick={submit}
             disabled={duplicate.isPending}
-            className="flex-[2] py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
+            className="flex-[2] py-3.5 rounded-lg text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
             style={{ backgroundColor: "var(--brand-green)" }}
           >
             {duplicate.isPending ? "Duplicating…" : "Create the draft"}
@@ -110,13 +110,13 @@ export function DuplicateEventModal({
         </FormField>
 
         <div
-          className="rounded-xl px-4 py-3 space-y-2"
-          style={{ backgroundColor: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}
+          className="rounded-lg px-4 py-3 space-y-2"
+          style={{ border: "1px solid var(--brand-border)" }}
         >
           <p className="text-[15px] font-bold text-[var(--brand-text)]">What comes across</p>
           <ul className="text-[15px] leading-relaxed list-disc pl-5 text-[var(--brand-text)]">
             <li>
-              The description, category, format, venue, capacity and ticket price — and{" "}
+              The description, category, format, venue, capacity and price — and{" "}
               <b>the same dates</b>, so change them before you publish.
             </li>
             {(agendaRows > 0 || faqRows > 0) && (
@@ -127,18 +127,17 @@ export function DuplicateEventModal({
               </li>
             )}
             <li>
-              <b>Not</b> the sales, the attendees, the reviews or the announcements — those belong to
-              the event that happened.
+              <b>Not</b> the sales, attendees, reviews or announcements.
             </li>
           </ul>
         </div>
 
         <p className="text-[15px] leading-relaxed text-[var(--brand-hint)]">
-          The copy is created as a <b>draft</b>, so nobody can see it until you publish it.
+          The copy is a <b>draft</b> — nobody sees it until you publish it.
         </p>
 
         {error && (
-          <p className="text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">{error}</p>
+          <p className="text-sm px-4 py-3 rounded-lg bg-red-50 text-red-600 border border-red-200">{error}</p>
         )}
       </div>
     </ModalShell>

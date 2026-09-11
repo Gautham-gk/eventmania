@@ -261,8 +261,8 @@ const FEATURES: Record<Audience, Feature[]> = {
       body: (
         <>
           See all your event info and stats in the{' '}
-          <BodyLink href="/organizer" audience="organisers">
-            organiser dashboard
+          <BodyLink href="/organizer/events" audience="organisers">
+            organiser console
           </BodyLink>{' '}
           — one at a time, or all together.
         </>
@@ -326,7 +326,7 @@ const CTAS: Record<Audience, AudienceCTA> = {
  *  which is a separate and still-standing decision (DESIGN_NOTES.md §1: "left
  *  align the whole thing"). Do not centre the section while centring the cards. */
 const TILE =
-  'group h-full rounded-2xl p-5 flex flex-col gap-2.5 border-2 transition-colors duration-200 ' +
+  'group h-full rounded-lg p-5 flex flex-col gap-2.5 border-2 transition-colors duration-200 ' +
   'items-center text-center ' +
   'bg-[var(--brand-surface)] border-[var(--brand-control-border)]'
 

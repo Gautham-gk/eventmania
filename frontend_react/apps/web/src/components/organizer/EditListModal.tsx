@@ -1,19 +1,21 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  ONE dialog behind all three organiser-authored lists: the agenda, the
-//  announcements and the FAQ.
+//  The SAVE behind all three organiser-authored lists on `/event/[id]` — the
+//  agenda, the announcements and the FAQ.
+//
+//  ⚠️ THE DIALOG ITSELF IS `ListEditorModal`, and the rows inside it are
+//  `ListEditor`. This file is only what "Save changes" means on the event page:
+//  one mutation against the event, straight into the page's cache entry.
+//  `/organizer/create` mounts the same dialog and spends its save on local
+//  state instead. **Add a list, a field type or a validation rule in
+//  `ListEditor`; change the dialog in `ListEditorModal`; neither belongs here.**
 //
 //  ⚠️ THREE DIALOGS WERE THE OBVIOUS BUILD AND ARE THE WRONG ONE. The lists
 //  differ only in their field names and whether order is meaningful; three
 //  copies would drift on the things that actually matter — the add/remove
 //  affordance, the validation, the empty-row rule, the save path — which is the
 //  drift CLAUDE.md's consistency section exists to stop.
-//
-//  ⚠️ THE ROWS THEMSELVES LIVE IN `ListEditor.tsx`, not here. This file is the
-//  dialog and the save; the editor body is shared with `/organizer/create`,
-//  which offers the agenda and the FAQ at creation time. **Add a list, a field
-//  type or a validation rule THERE**, or the two surfaces drift apart.
 //
 //  ⚠️ IT SAVES THE WHOLE ARRAY, not a diff. These live in one JSON-ish field on
 //  the event, so a partial write has no meaning — and because the dialog is
@@ -31,17 +33,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Event } from "@eventmind/types";
 import { eventsSource } from "@/lib/data-source";
-import { ModalShell } from "@/components/ModalShell";
-import {
-  ListEditor,
-  SPEC,
-  dropBlankRows,
-  rowErrors,
-  toPatch,
-  toRows,
-  type ListKind,
-  type Row,
-} from "@/components/organizer/ListEditor";
+import { ListEditorModal } from "@/components/organizer/ListEditorModal";
+import { toPatch, toRows, type ListKind, type Row } from "@/components/organizer/ListEditor";
 
 export type { ListKind };
 
@@ -72,16 +65,12 @@ export function EditListModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const spec = SPEC[kind];
   const queryClient = useQueryClient();
-  // Seeded from props ON MOUNT — the call site mounts this only while open, so
-  // it always starts from the event's current rows.
-  const [rows, setRows] = useState<Row[]>(() => {
-    const existing = toRows(kind, event);
-    return extraRow ? [...existing, extraRow] : existing;
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+
+  // Pure, and only read once — `ListEditorModal` seeds its draft on mount.
+  const existing = toRows(kind, event);
+  const initialRows = extraRow ? [...existing, extraRow] : existing;
 
   const save = useMutation({
     mutationFn: (next: Row[]) =>
@@ -98,52 +87,18 @@ export function EditListModal({
     onError: () => setError("Could not save. Please try again."),
   });
 
-  function submit() {
-    setError(null);
-    const kept = dropBlankRows(kind, rows);
-    const found = rowErrors(kind, kept);
-    setErrors(found);
-    if (Object.keys(found).length > 0) return;
-
-    setRows(kept);
-    save.mutate(kept);
-  }
-
   return (
-    <ModalShell
+    <ListEditorModal
+      kind={kind}
+      initialRows={initialRows}
       open={open}
-      title={spec.title}
       onClose={onClose}
-      width="max-w-2xl"
-      footer={
-        // ⚠️ SAVE IS THE ONLY BUTTON HERE (Gautham, 2026-09-02). Discard was
-        // the third way out of a dialog that already has two — the title row's
-        // ✕ and `ModalShell`'s Escape / click-outside — and it read as a
-        // decision to make rather than the way back. **Do not add it back, and
-        // do not put a Cancel in its place**; the other organiser dialogs keep
-        // their pair because each of those commits something destructive or
-        // irreversible, and this one does not.
-        <button
-          type="button"
-          onClick={submit}
-          disabled={save.isPending}
-          className="w-full py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
-          style={{ backgroundColor: "var(--brand-green)" }}
-        >
-          {save.isPending ? "Saving…" : "Save changes"}
-        </button>
-      }
-    >
-      <div className="space-y-5">
-        {/* `showAdd={false}` — the control that opened this already said "Post
-            an announcement" / "Add an agenda" / "Add an FAQ", and `extraRow`
-            put the organiser on the fields. See `ListEditor`'s prop. */}
-        <ListEditor kind={kind} rows={rows} onChange={setRows} errors={errors} showAdd={false} />
-
-        {error && (
-          <p className="text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">{error}</p>
-        )}
-      </div>
-    </ModalShell>
+      onSave={(rows) => {
+        setError(null);
+        save.mutate(rows);
+      }}
+      saving={save.isPending}
+      error={error}
+    />
   );
 }

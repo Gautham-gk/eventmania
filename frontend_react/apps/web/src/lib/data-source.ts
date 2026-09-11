@@ -80,9 +80,23 @@ function matchesFormat(event: Event, wanted: string): boolean {
   return wanted.toLowerCase() === "online" ? isOnlineEvent(event) : !isOnlineEvent(event);
 }
 
-// In dummy mode we deliberately IGNORE geo/city/price/date filters so the UI is
-// always populated for beautifying. We honour only: the online-vs-in-person split
-// (via event_type), category, a loose text query, organizer_id, and limit.
+/**
+ * A fixture's `start_date` is a full ISO timestamp; a date bound is a LOCAL
+ * `YYYY-MM-DD` day (`isoDate` in /explore), and both ends are inclusive — its
+ * "Today" preset sets `date_from === date_to`. So the comparison is day against
+ * day. Comparing the timestamp itself would read the bound as midnight and drop
+ * every event later that day, i.e. "Today" returning nothing.
+ */
+const localDay = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// In dummy mode we deliberately IGNORE the geo/city filter (`lat`/`lng`/`radius`)
+// so the UI is always populated for beautifying — every fixture is a New York
+// event, so honouring it would empty every other city. Everything else matches
+// what /event/search does: the online-vs-in-person split (via event_type),
+// category, a loose text query, price, dates, organizer_id, and limit.
 function dummyEventSearch(params?: EventSearchParams): Event[] {
   // event_type is the format filter; it is INDEPENDENT of category, so
   // { event_type: "Online", category: "Music" } correctly yields online music
@@ -94,9 +108,21 @@ function dummyEventSearch(params?: EventSearchParams): Event[] {
     list = list.filter((e) => e.category.toLowerCase() === wanted);
   }
   if (params?.q) list = list.filter((e) => has(e.title, params.q));
+  // ⚠️ Both bounds are inclusive, and price is compared as a BARE NUMBER with
+  // no regard for the event's currency — a $45 fixture matches price_max=500 as
+  // readily as a ₹45 one. That mirrors the backend exactly, on purpose: see the
+  // same warning on /event/search and TODO.md §25. Do NOT convert here.
+  if (typeof params?.price_min === "number") {
+    list = list.filter((e) => Number(e.price ?? 0) >= params.price_min!);
+  }
+  if (typeof params?.price_max === "number") {
+    list = list.filter((e) => Number(e.price ?? 0) <= params.price_max!);
+  }
+  if (params?.date_from) list = list.filter((e) => localDay(e.start_date) >= params.date_from!);
+  if (params?.date_to) list = list.filter((e) => localDay(e.start_date) <= params.date_to!);
   if (params?.organizer_id) list = list.filter((e) => e.organizer_id === params.organizer_id);
   if (typeof params?.limit === "number") list = list.slice(0, params.limit);
-  return list;
+  return list.map(snapshot);
 }
 
 function dummyCommunitySearch(params?: CommunitySearchParams): Community[] {
@@ -118,6 +144,27 @@ function dummyCommunitySearch(params?: CommunitySearchParams): Community[] {
  * home page, click the event you are managing, and land on its public page.
  */
 const allEvents = () => [...dummyMyEvents, ...dummyEvents, ...dummyOnlineEvents];
+
+/**
+ * ⚠️ EVERY DUMMY READ HANDS OUT A COPY, AND THAT IS LOAD-BEARING (Gautham,
+ * 2026-09-08: "changing Live → Registration closed isn't dynamically changing").
+ *
+ * `update` below mutates the fixture IN PLACE, and React Query keeps structural
+ * sharing on by default — `setQueryData` runs `replaceEqualDeep(old, new)` and
+ * returns the OLD reference whenever the two are deeply equal. Hand the cache
+ * the fixture object itself and both halves of that comparison are the same
+ * mutated object, so the write is always "no change": **the fixture updates, the
+ * mutation succeeds, and nothing re-renders.** Returning `{ ...target }` from
+ * `update` cannot fix that on its own — the value it is compared against was
+ * already mutated underneath the cache.
+ *
+ * A copy at READ time is what breaks the aliasing: the cache holds a snapshot
+ * taken before the edit, so the post-edit value genuinely differs and the diff
+ * is visible. Deep equality still collapses unchanged rows back onto their old
+ * references, so this costs no extra renders. Shallow is enough — nothing
+ * mutates a nested `location` in place.
+ */
+const snapshot = <T extends object>(e: T): T => ({ ...e });
 
 /**
  * What a VISITOR can find: published, and not already over.
@@ -142,10 +189,11 @@ const allCommunities = () => [...dummyCommunities, ...dummyOnlineCommunities];
 export const eventsSource = {
   search: (params?: EventSearchParams) =>
     isDummyMode ? ok(dummyEventSearch(params)) : eventsApi.search(params),
-  get: (id: string) =>
-    isDummyMode
-      ? ok((allEvents().find((e) => String(e.id) === String(id)) ?? null) as Event)
-      : eventsApi.get(id),
+  get: (id: string) => {
+    if (!isDummyMode) return eventsApi.get(id);
+    const found = allEvents().find((e) => String(e.id) === String(id));
+    return ok((found ? snapshot(found) : null) as Event);
+  },
   // Dummy mode counts the fixtures, so the hero's "About N options" line is
   // honest in both modes rather than reporting a backend number no one is serving.
   // It counts what a visitor could actually FIND — a draft is not an option.
@@ -220,17 +268,18 @@ export const eventsSource = {
     const target = allEvents().find((e) => String(e.id) === String(id));
     if (!target) return Promise.reject(new Error(`No fixture event ${id}`));
     Object.assign(target, patch, { updated_at: new Date().toISOString() });
-    // ⚠️ A COPY, NOT `target` ITSELF — AND THE SPREAD IS THE WHOLE FIX (Gautham,
-    // 2026-09-01: a status change "isn't immediately reflected in the page").
-    // Every caller pipes this into `queryClient.setQueryData(["event", id], …)`,
-    // and the cache is ALREADY holding `target` — the same object `get()` handed
-    // it. Returning `target` therefore writes a value referentially equal to the
-    // one already stored, React Query treats that as no change, and **nothing
-    // re-renders even though the mutation succeeded**. The fixture was updated;
-    // the screen simply never heard. A fresh reference is what makes the write
-    // visible. This bit publish, cancel and edit too — all four had it, and only
-    // the status select showed it without a navigation to hide behind.
-    return ok({ ...target });
+    // ⚠️ A COPY, NOT `target` ITSELF (Gautham, 2026-09-01: a status change
+    // "isn't immediately reflected in the page"). Every caller pipes this into
+    // `queryClient.setQueryData(["event", id], …)`, and returning `target` would
+    // write a value referentially equal to the one already stored.
+    //
+    // ⚠️ THE SPREAD IS ONLY HALF OF IT, and on its own it fixed NOTHING — the
+    // bug came back on the same select (Gautham, 2026-09-08). React Query
+    // compares by DEEP equality, not by reference, so a fresh reference around
+    // the same values is still "no change". The other half is that dummy reads
+    // hand out copies too, so the cache is not holding this very object while we
+    // mutate it — see `snapshot` above, and do not remove either half.
+    return ok(snapshot(target));
   },
 
   /**
@@ -359,7 +408,10 @@ export const organizerSource = {
    * backend — part of TODO.md §19, not a bug in the page.
    */
   events: (organiserId: string): Promise<{ data: Event[] }> =>
-    isDummyMode ? ok(dummyMyEvents) : eventsApi.search({ organizer_id: organiserId }),
+    // Copies, for the reason written up on `snapshot` — this is the query the
+    // status select invalidates, and handing back the fixture objects themselves
+    // would make the refetch deep-equal to what the console is already showing.
+    isDummyMode ? ok(dummyMyEvents.map(snapshot)) : eventsApi.search({ organizer_id: organiserId }),
 
   /** Ticket holders for one event. `eventId` is ignored in dummy mode. */
   attendees: (): Promise<{ data: DummyAttendee[] }> => ok(isDummyMode ? dummyAttendees : []),
@@ -370,7 +422,7 @@ export const organizerSource = {
   /** The payment terms the Earnings page prints under its settlement table. */
   paymentTerms: (): Promise<{ data: DummyPaymentTerm[] }> => ok(isDummyMode ? dummyPaymentTerms : []),
 
-  /** Portfolio roll-ups + the "next up" event the dashboard hero is built on. */
+  /** Portfolio roll-ups + the "next up" event the Events hero is built on. */
   overview: (): Promise<{ data: { portfolio: typeof dummyPortfolio; next: typeof dummyNextEvent } | null }> =>
     ok(isDummyMode ? { portfolio: dummyPortfolio, next: dummyNextEvent } : null),
 };

@@ -13,15 +13,20 @@
 //  --brand-surface equals --brand-bg, so the right-hand border is the only thing
 //  separating the rail from the page: it uses --brand-nav-border, the stronger
 //  card token, and **must not be dropped or softened to --brand-border.**
-//  (`--brand-ink` still fills the dashboard and earnings HERO panels; it is no
+//  (`--brand-ink` still fills the Events and Earnings HERO panels; it is no
 //  longer the rail's colour.)
 //
 //  ⚠️ NO "New event" BUTTON in the rail (Gautham, 2026-08-21). The green CTA that
 //  sat under the nav list was removed. The remaining always-available door to
 //  `/organizer/create` is the navbar's **Organisers** dropdown, one row up; the
-//  console's own create CTAs live in the Dashboard and Events EMPTY STATES only,
-//  so an organiser who already has events reaches it via the navbar. Do not add
-//  the rail button back without asking.
+//  console's own create CTA lives in the Events EMPTY STATE only, so an organiser
+//  who already has events reaches it via the navbar. Do not add the rail button
+//  back without asking.
+//
+//  ⚠️ NO "Dashboard" ITEM either (Gautham, 2026-09-07). Events is the console's
+//  landing section and carries the overview band the Dashboard used to hold; the
+//  two were showing the same rows off the same `toConsoleRows`. `/organizer` is
+//  now a redirect to `/organizer/events`. Do not add a fifth item back.
 //
 //  The rail sits UNDER the app's 72px navbar rather than replacing it — search,
 //  theme toggle, chat and the avatar menu stay reachable, and the way back out
@@ -35,9 +40,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconProps } from "@/components/EventIcons";
-import {
-  DashboardIcon, EventsIcon, AttendeesIcon, EarningsIcon,
-} from "./ConsoleIcons";
+import { EventsIcon, AttendeesIcon, EarningsIcon } from "./ConsoleIcons";
 
 /** The navbar's height. The rail hangs off it — see the header note. */
 export const NAVBAR_H = 72;
@@ -49,18 +52,21 @@ export interface ConsoleSection {
 }
 
 export const CONSOLE_NAV: ConsoleSection[] = [
-  { href: "/organizer", label: "Dashboard", Icon: DashboardIcon },
   { href: "/organizer/events", label: "Events", Icon: EventsIcon },
   { href: "/organizer/attendees", label: "Attendees", Icon: AttendeesIcon },
   { href: "/organizer/earnings", label: "Earnings", Icon: EarningsIcon },
 ];
 
 /**
- * `/organizer` must match EXACTLY — a `startsWith` there would light Dashboard
- * up on every section, since every other href is nested under it.
+ * `startsWith`, so a future `/organizer/events/[id]` keeps its section lit.
+ *
+ * ⚠️ It is only safe because no href here is a prefix of another. The bare
+ * `/organizer` used to be, which is why this needed an exact-match special case
+ * until the Dashboard went — **if you ever add a section whose path nests under
+ * an existing one, that case has to come back.**
  */
 function isActive(pathname: string, href: string) {
-  return href === "/organizer" ? pathname === href : pathname.startsWith(href);
+  return pathname.startsWith(href);
 }
 
 /** Counts shown against a section, keyed by href. Absent = no badge. */
@@ -78,7 +84,9 @@ export function ConsoleSidebar({ badges = {} }: { badges?: NavBadges }) {
           backgroundColor: "var(--brand-surface)",
           borderRight: "1px solid var(--brand-nav-border)",
           top: NAVBAR_H,
-          height: `calc(100vh - ${NAVBAR_H}px)`,
+          // dvh, not vh: an iPad in landscape shows this rail, and Safari's
+          // toolbar makes 100vh taller than the visible screen (CLAUDE.md).
+          height: `calc(100dvh - ${NAVBAR_H}px)`,
         }}
       >
         <nav className="flex flex-col gap-0.5">
@@ -141,7 +149,7 @@ function RailItem({ section, active, badge }: { section: ConsoleSection; active:
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="flex items-center justify-between gap-2.5 rounded-xl px-3 py-2.5 text-[17px] transition-colors"
+      className="flex items-center justify-between gap-2.5 rounded-lg px-3 py-2.5 text-[17px] transition-colors"
       style={{
         backgroundColor: active ? "var(--brand-green)" : "transparent",
         color: active ? "var(--brand-on-green)" : "var(--brand-hint)",

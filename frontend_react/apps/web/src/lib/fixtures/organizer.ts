@@ -1,6 +1,6 @@
 // Dummy organiser-console data ("dummy" data mode — see lib/data-source.ts).
 //
-// The organiser dashboard shows three things the backend does not serve yet:
+// The organiser console shows three things the backend does not serve yet:
 // attendee lists, earnings, and the payment terms on the Earnings page.
 // In dummy mode the console renders these fixtures so the design is fully
 // visible with no backend running; in REAL mode `organizerSource` returns
@@ -11,7 +11,7 @@
 // is DERIVED from `dummyMyEvents` in ./events — the same eight `Event` objects
 // the console's tables list and the site's event pages render. This file used to
 // hand-write its own five events (a Mumbai print studio the rest of the app had
-// never heard of), so the dashboard hero talked about "Cyanotype Lab" while the
+// never heard of), so the console hero talked about "Cyanotype Lab" while the
 // table underneath it listed New York jazz nights. One set of events, two views
 // of it: an event's title, date, capacity, tickets sold, price and currency are
 // read from the event, never restated here.
@@ -80,7 +80,7 @@ const extrasFor = (id: string) => EXTRAS[id] ?? NO_EXTRAS;
 /**
  * The currency every figure in the console is reported in.
  *
- * The dashboard and the Earnings page SUM across events, and a total that adds
+ * The Events page and the Earnings page SUM across events, and a total that adds
  * dollars to rupees is simply wrong — so the organiser's own events are all on
  * one currency and this reads it off them rather than naming one. If a mixed
  * portfolio ever needs supporting, the totals have to be split per currency
@@ -92,7 +92,7 @@ function assertOneCurrency(events: Event[]): CurrencyCode {
     throw new Error(
       `dummyMyEvents mixes currencies (${[...codes].join(", ")}). The console sums across ` +
         `events, so a portfolio total would be meaningless. Put them all on one currency, ` +
-        `or teach the dashboard and Earnings page to total per currency first.`,
+        `or teach the Events and Earnings pages to total per currency first.`,
     );
   }
   return ([...codes][0] as CurrencyCode) ?? "INR";
@@ -103,7 +103,7 @@ export const DUMMY_CURRENCY = assertOneCurrency(dummyMyEvents);
 // ── Attendees ────────────────────────────────────────────────────────────────
 //
 // ⚠️ A SAMPLE, not the full list. These six hold tickets to the Cyanotype Lab —
-// the event the dashboard hero is built around — which is why their refund
+// the event the console hero is built around — which is why their refund
 // matches its `refunds` entry in EXTRAS. The event has sold 42; a fixture file
 // listing all 42 would be noise. The real page shows every ticket holder once
 // the endpoint in TODO.md §19 exists.
@@ -253,10 +253,10 @@ export const dummyPaymentTerms: DummyPaymentTerm[] = [
   { label: "Who approves refunds", value: "You" },
 ];
 
-// ── Roll-ups the dashboard header and hero read ──────────────────────────────
+// ── Roll-ups the Events page header and hero read ────────────────────────────
 //
 // ⚠️ EVERY FIGURE HERE IS COMPUTED, none is typed in. That is the difference
-// between a dashboard that demonstrates a design and one that contradicts the
+// between an overview that demonstrates a design and one that contradicts the
 // table three inches below it: change an event's `tickets_sold` in ./events and
 // the tile, the table row and the earnings line all move together.
 
@@ -295,7 +295,7 @@ export const dummyPortfolio = {
 };
 
 /**
- * The "next up" event the dashboard hero is built around — the soonest published
+ * The "next up" event the console hero is built around — the soonest published
  * event that has not finished. Derived, so it can never drift out of date or
  * name an event the table below it does not list.
  */

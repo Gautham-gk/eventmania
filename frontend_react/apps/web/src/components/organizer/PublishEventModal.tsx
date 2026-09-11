@@ -58,7 +58,7 @@ export function PublishEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3.5 rounded-2xl text-[16px] font-bold transition-colors"
+            className="flex-1 py-3.5 rounded-lg text-[16px] font-bold transition-colors"
             style={{ border: "2px solid var(--brand-control-border)", color: "var(--brand-text)" }}
           >
             Not yet
@@ -67,7 +67,7 @@ export function PublishEventModal({
             type="button"
             onClick={() => { setError(null); publish.mutate(); }}
             disabled={publish.isPending}
-            className="flex-[2] py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
+            className="flex-[2] py-3.5 rounded-lg text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
             style={{ backgroundColor: "var(--brand-green)" }}
           >
             {publish.isPending ? "Publishing…" : "Yes, publish it"}
@@ -77,38 +77,33 @@ export function PublishEventModal({
     >
       <div className="space-y-4">
         <p className="text-[16px] leading-relaxed text-[var(--brand-text)]">
-          <b>{event.title}</b> becomes visible to everyone: it appears in search and on the home
-          page, and anyone can book it at{" "}
+          <b>{event.title}</b> appears in search and on the home page, and anyone can book it at{" "}
           <b>{formatPrice(event.price, event.currency)}</b>.
         </p>
 
         {noCapacity && (
-          <div
-            className="rounded-xl px-4 py-3"
-            style={{ backgroundColor: "color-mix(in srgb, var(--brand-terracotta) 12%, transparent)" }}
-          >
+          <div className="rounded-lg px-4 py-3" style={{ border: "1px solid var(--brand-border)" }}>
             <p className="text-[15px] leading-relaxed text-[var(--brand-text)]">
-              <b>The allowed number of participants is 0.</b> Published as it stands, the page will
-              show <i>Sold Out</i> and nobody will be able to book. Set a capacity in{" "}
-              <i>Edit details</i> first if that is not what you want.
+              <b>The allowed number of participants is 0.</b> The page will show <i>Sold Out</i> and
+              nobody can book. Set a capacity in <i>Edit details</i> first.
             </p>
           </div>
         )}
 
         {/* Stated plainly BECAUSE it is not built. See the file header. */}
         <div
-          className="rounded-xl px-4 py-3 space-y-2"
-          style={{ backgroundColor: "color-mix(in srgb, var(--brand-green) 10%, transparent)" }}
+          className="rounded-lg px-4 py-3 space-y-2"
+          style={{ border: "1px solid var(--brand-border)" }}
         >
           <p className="text-[15px] font-bold text-[var(--brand-text)]">What this does not do</p>
           <ul className="text-[15px] leading-relaxed list-disc pl-5 text-[var(--brand-text)]">
-            <li>Nobody is emailed or notified — there is no announcement on publish.</li>
-            <li>You can keep editing afterwards, and you can still cancel.</li>
+            <li>Nobody is notified — there is no announcement on publish.</li>
+            <li>You can still edit or cancel afterwards.</li>
           </ul>
         </div>
 
         {error && (
-          <p className="text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">{error}</p>
+          <p className="text-sm px-4 py-3 rounded-lg bg-red-50 text-red-600 border border-red-200">{error}</p>
         )}
       </div>
     </ModalShell>

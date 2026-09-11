@@ -156,7 +156,7 @@ export function useIsEventOwner(event: Event | null | undefined): boolean {
 /**
  * The organiser's events, on ONE query key.
  *
- * The layout (for its nav count), the dashboard and the events table all want
+ * The layout (for its nav count), the Events hero and the events table all want
  * this list. Sharing the key means React Query serves them from a single fetch
  * — and, more importantly, means the count in the sidebar can never disagree
  * with the number of rows in the table.

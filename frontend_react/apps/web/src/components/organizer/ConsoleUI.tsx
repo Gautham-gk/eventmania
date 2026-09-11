@@ -46,17 +46,40 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { TAG_SHAPE, TAG_LABEL } from "@/components/EventBadges";
 import type { EventBucket } from "@/lib/organizer-rows";
 import { HERO_SCRIM } from "@/lib/event-media";
-import { ChevronIcon, CaretIcon, CheckIcon } from "./ConsoleIcons";
+import { ChevronIcon, CaretIcon, CheckIcon, MoreIcon } from "./ConsoleIcons";
 
 // ── Token shorthands ─────────────────────────────────────────────────────────
 
 export const INK = "var(--brand-ink)";
 export const ON_INK = "var(--brand-on-ink)";
+
+/**
+ * The five blocks inside the events page's "upcoming event" panel — its three
+ * stat tiles and its two "needs you" cards.
+ *
+ * ⚠️ **THESE ARE WHITE, NOT GREEN** (Gautham, 2026-09-11). They were solid
+ * `--brand-console-green` with linen type for two days and read as five heavy
+ * slabs dropped onto a white panel. They are now the page's own card recipe —
+ * `--brand-surface` on a 1px `--brand-nav-border` — so the panel holds ordinary
+ * cards and the green is left to do one job: the panel's own 2px border.
+ *
+ * The border is LOAD-BEARING, not decoration: in light mode `--brand-surface`
+ * equals `--brand-bg`, so without it a white block on the white panel has no
+ * edge at all. Same reasoning `Card` records for the same pair of tokens.
+ *
+ * `--brand-console-green` is now used by nothing. Left in globals.css against
+ * the panel going dark again; **do not reach for it to re-tint these.**
+ */
+export const BOX_FILL = "var(--brand-surface)";
+export const BOX_LINE = "var(--brand-nav-border)";
+export const ON_BOX = "var(--brand-text)";
+export const ON_BOX_SOFT = "var(--brand-hint)";
 
 /**
  * The console's ONE accent — badges, the hero's figures, the primary button on
@@ -69,11 +92,15 @@ export const ON_INK = "var(--brand-on-ink)";
  * it back, and do not reach for a second accent here.**
  *
  * Known, accepted cost: terracotta on `--brand-ink` is ~3.3:1 where gold was
- * ~7.5:1, so the small text this colours on the hero (the sold-% line, the
- * "Paid" chip, the "Needs you today" label) sits under WCAG AA. Weighed and
- * taken deliberately, the same trade FeatureBand's white-on-terracotta hover
- * already carries. It does NOT apply to the FILLS — a badge or button painted
- * terracotta uses ON_ACCENT (white) and reads fine.
+ * ~7.5:1, so the small text this colours on an ink panel — today the earnings
+ * hero's figures and sub-lines, which is the last `INK` panel left — sits under
+ * WCAG AA. Weighed and taken deliberately, the same trade FeatureBand's
+ * white-on-terracotta hover already carries. It does NOT apply to the FILLS — a
+ * badge or button painted terracotta uses ON_ACCENT (white) and reads fine.
+ *
+ * ⚠️ The Events hero used to be the worked example here (its sold-% line, its
+ * "Paid" chip, its "Needs you today" label). **It is not any more** — that panel
+ * went white-on-green on 2026-09-11 and carries no terracotta at all.
  */
 export const ACCENT = "var(--brand-terracotta)";
 export const ON_ACCENT = "var(--brand-on-terracotta)";
@@ -130,7 +157,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl overflow-hidden ${padded ? "p-5 sm:p-6" : ""} ${className}`}
+      className={`rounded-lg overflow-hidden ${padded ? "p-5 sm:p-6" : ""} ${className}`}
       style={{
         backgroundColor: "var(--brand-surface)",
         border: "1px solid var(--brand-nav-border)",
@@ -144,7 +171,7 @@ export function Card({
 }
 
 /**
- * The deep-green panel: dashboard hero, earnings hero.
+ * The deep-green panel: the Events page's "next up" hero, the Earnings hero.
  *
  * ⚠️ `image` PUTS THE EVENT'S OWN PHOTOGRAPH BEHIND IT (Gautham, 2026-08-22).
  * NewFind is photo-first everywhere a user looks — every card, both heroes, the
@@ -161,24 +188,52 @@ export function Card({
  * the photo reads clearly and `ON_INK` copy keeps a dark ground under it —
  * re-check both if you change the 24%.
  *
- * The earnings hero passes no image and stays a flat ink panel: it is about
- * money across every event, not about one event.
+ * ⚠️ The `ink` tone has NO CALLER since 2026-09-11, when the earnings hero —
+ * the last flat ink panel — became an ordinary `StatTile` beside the three it
+ * used to lead (Gautham). Kept because the tone is the panel's original form
+ * and `paper` is documented against it; the Events overview is the one caller.
  */
 export function InkPanel({
-  children, className = "", image, imageAlt = "",
+  children, className = "", image, imageAlt = "", tone = "ink",
 }: {
   children: ReactNode;
   className?: string;
   /** The event's `cardImageUrl` — same picture as its card. */
   image?: string;
   imageAlt?: string;
+  /**
+   * `paper` turns the panel inside out — brand white on a 2px `--brand-green`
+   * border, with the colour moved into the five blocks it holds (see
+   * `BOX_FILL`). It is the events page's overview panel, and only that; the
+   * earnings hero is still `ink`. A PROP, not a fork, per the note at the top of
+   * this file.
+   *
+   * ⚠️ **`paper` DROPS THE PHOTOGRAPH**, and passing an `image` with it is
+   * ignored rather than honoured. The picture works by sitting at 24% over a
+   * near-black ground under `HERO_SCRIM`'s dark gradient; over white the same
+   * two layers make grey mud, and lifting the photo to full strength puts the
+   * panel's dark copy back on an uncontrolled ground. This is a real cost — the
+   * console had no pictures in it at all before 2026-08-22, which is a large
+   * part of why it read as somebody else's product — so **if the panel ever goes
+   * back to a dark ground, put the image back with it.**
+   */
+  tone?: "ink" | "paper";
 }) {
+  const paper = tone === "paper";
   return (
     <div
-      className={`relative rounded-2xl overflow-hidden p-6 sm:p-7 ${className}`}
-      style={{ backgroundColor: INK, color: ON_INK }}
+      className={`relative rounded-lg overflow-hidden p-6 sm:p-7 ${className}`}
+      style={
+        paper
+          ? {
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-text)",
+              border: "2px solid var(--brand-green)",
+            }
+          : { backgroundColor: INK, color: ON_INK }
+      }
     >
-      {image && (
+      {image && !paper && (
         <>
           <Image
             src={image}
@@ -276,7 +331,7 @@ export type PillType = EventBucket | "free" | "paid";
  * changes, change this to match.**
  *
  * TWO FILLS, and the split is not arbitrary:
- *   · `type` — an EVENT row on the dashboard and /organizer/events. A fixed set
+ *   · `type` — an EVENT row on /organizer/events. A fixed set
  *     of states, so it draws a fixed palette colour, like a status tag does.
  *   · `tone` — everything else, currently the Attendees table, whose states are
  *     good/warn judgements rather than a closed list. Keeps the 12% wash.
@@ -377,15 +432,44 @@ export function StatTile({
   );
 }
 
-/** The same tile, on the ink panel — one step down, since four sit in a row. */
-export function InkStatTile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+/**
+ * The same tile, on a dark panel — one step down, since three sit in a row.
+ *
+ * `surface="box"` is the tile on the white overview panel: `--brand-surface` on
+ * a 1px `--brand-nav-border`, with the page's own type colours — the same object
+ * as `StatTile`'s `Card` one step down. See the note on `BOX_FILL`; it was a
+ * solid green slab until 2026-09-11 and the border is what separates it now.
+ */
+export function InkStatTile({
+  label, value, sub, surface = "ink",
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: ReactNode;
+  surface?: "ink" | "box";
+}) {
+  const box = surface === "box";
   return (
-    <div className="rounded-xl p-3.5" style={{ backgroundColor: INK_FILL, border: `1px solid ${INK_LINE}` }}>
-      <MicroLabel color={ON_INK_SOFT}>{label}</MicroLabel>
-      <div className="text-[26px] font-extrabold leading-tight mt-1.5 tracking-[-0.5px]" style={{ color: ON_INK }}>
+    <div
+      className="rounded-lg p-3.5"
+      style={
+        box
+          ? { backgroundColor: BOX_FILL, border: `1px solid ${BOX_LINE}` }
+          : { backgroundColor: INK_FILL, border: `1px solid ${INK_LINE}` }
+      }
+    >
+      <MicroLabel color={box ? ON_BOX_SOFT : ON_INK_SOFT}>{label}</MicroLabel>
+      <div
+        className="text-[26px] font-extrabold leading-tight mt-1.5 tracking-[-0.5px]"
+        style={{ color: box ? ON_BOX : ON_INK }}
+      >
         {value}
       </div>
-      {sub && <div className="text-[15px] mt-1" style={{ color: ON_INK_SOFT }}>{sub}</div>}
+      {sub && (
+        <div className="text-[15px] mt-1" style={{ color: box ? ON_BOX_SOFT : ON_INK_SOFT }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -396,14 +480,17 @@ export function InkStatTile({ label, value, sub }: { label: string; value: React
  * An event's picture at row scale.
  *
  * ⚠️ The same photograph its card shows on home and /explore — the URL comes
- * from `cardImageUrl` via `ConsoleRow.image`, never from a second rule here. An
+ * from `eventImageUrl` via `ConsoleRow.image`, never from a second rule here. An
  * organiser scanning their events table sees the pictures they already know
  * their events by, which is what a list of events looks like everywhere else on
- * the site.
+ * the site. `unoptimized` because that URL can be an organiser's own upload or
+ * pasted link, not just the picsum placeholder in `next.config.ts`'s
+ * `remotePatterns`.
  *
- * `rounded-lg`, not the card's `rounded-2xl`: at 56px a 16px radius eats the
- * corners of the image. Same reason the shape rule gives small controls a
- * smaller radius.
+ * `rounded-lg`, the app's single corner radius, which the card it sits in also
+ * carries. It used to be deliberately tighter than that card, because at 56px
+ * the old 16px radius ate the corners of the image; the 8px step made the
+ * distinction moot.
  */
 export function EventThumb({ src, alt }: { src: string; alt: string }) {
   return (
@@ -413,7 +500,7 @@ export function EventThumb({ src, alt }: { src: string; alt: string }) {
     >
       {/* Decorative: the title sits beside it, so a screen reader announcing the
           event twice would be noise. Hence alt="" at every call site. */}
-      <Image src={src} alt={alt} fill className="object-cover" sizes="56px" />
+      <Image src={src} alt={alt} fill unoptimized className="object-cover" sizes="56px" />
     </span>
   );
 }
@@ -430,10 +517,10 @@ export interface TabItem {
  * The section's filter tabs.
  *
  * ⚠️ **THIS IS THE HOME PAGE'S FILTER TAB** (Gautham, 2026-08-22) — the row
- * above the event grid in `EventsCarousel`, down to the `rounded-xl`, the 20px
+ * above the event grid in `EventsCarousel`, down to the `rounded-lg`, the 20px
  * semibold label, the `2px` border on both states and the SOLID green fill when
- * picked. The console had its own dialect: `rounded-lg`, 15px, and a 12% green
- * tint with a green label. Neither the shape nor the selected-state fill existed
+ * picked. The console had its own dialect: 15px type and a 12% green tint with
+ * a green label. Neither the type nor the selected-state fill existed
  * anywhere else in the app, and this is the control an organiser touches most,
  * so it is the one most worth having be literally the same object.
  *
@@ -445,14 +532,16 @@ export interface TabItem {
  *     mode, where `--brand-surface` equals `--brand-bg` and a transparent border
  *     leaves the tab with no edge at all.
  *
- * `rounded-xl` on a small control is the standing exception `EventsCarousel`'s
- * rows already carry (Gautham, 2026-08-21): those tabs match the card's "View
- * details" CTA rather than the shape rule's `rounded-lg`. **These three now move
- * together — do not "correct" any of them to `rounded-lg`.**
+ * The radius is `rounded-lg` — the app's ONE corner radius (Gautham,
+ * 2026-09-11), shared by every button, input, chip, card and panel. The
+ * `rounded-xl` these tabs wore until then was a standing exception; there are
+ * no radius exceptions left, so nothing here needs moving as a set.
  *
  * ⚠️ IT MOVES LIKE `RowAction`, AND IT HOVERS LIKE ONE (Gautham, 2026-09-02).
- * Two changes, one point — a tab and the "See all events" control sit inches
- * apart in the dashboard's events header and behaved like different products:
+ * Two changes, one point — a tab and the "See all events" `RowAction` sat inches
+ * apart in the Dashboard's events header and behaved like different products.
+ * (That header went with the Dashboard on 2026-09-07; the rule it produced did
+ * not, and a tab still has to move like every other console control):
  *
  *   · **No `.nf-chip`.** That class popped the tab to 1.09 on selection and
  *     squished it to 0.95 while held. Nothing else in this row moves, and
@@ -490,7 +579,7 @@ export function Tabs({
             onClick={() => onSelect(t.key)}
             aria-pressed={on}
             /* 2px on BOTH states so the control cannot resize when picked. */
-            className={`group inline-flex items-center gap-2 rounded-xl font-semibold border-2 transition-colors ${
+            className={`group inline-flex items-center gap-2 rounded-lg font-semibold border-2 transition-colors ${
               size === "sm" ? "px-3.5 py-1.5 text-[18px]" : "px-4 py-1.5 text-[20px]"
             } ${
               on
@@ -511,15 +600,16 @@ export function Tabs({
  * An INERT filter control — the placeholder shape.
  *
  * Use this only where the section genuinely has nothing to filter against
- * (Attendees and Earnings draw from fixtures with no query behind them,
- * TODO.md §19). A dropdown that changes nothing is worse than one that visibly
- * isn't wired yet, so it is a <button> with `disabled` rather than a <span> —
- * still announced as a control, obviously not usable.
+ * (Earnings' date range — the fixtures hold one settlement per event and no
+ * dates to range over, TODO.md §19). A dropdown that changes nothing is worse
+ * than one that visibly isn't wired yet, so it is a <button> with `disabled`
+ * rather than a <span> — still announced as a control, obviously not usable.
  *
  * ⚠️ **Where the rows are already in memory, use `FilterSelect` below instead.**
- * Events filters and sorts client-side and does not wait on the backend; that
- * page is the reference. Do not leave a disabled control on a section that
- * could honestly do the work.
+ * Events filters and sorts client-side and does not wait on the backend, and
+ * Attendees' three dropdowns (event, ticket type, status) all work the same
+ * way over the list it already holds. Do not leave a disabled control on a
+ * section that could honestly do the work.
  */
 export function FilterButton({ children }: { children: ReactNode }) {
   return (
@@ -527,7 +617,7 @@ export function FilterButton({ children }: { children: ReactNode }) {
       type="button"
       disabled
       title="Filtering arrives with the organiser backend"
-      className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[18px] font-semibold cursor-not-allowed"
+      className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[18px] font-semibold cursor-not-allowed"
       style={{
         border: "2px solid var(--brand-control-border)",
         backgroundColor: "var(--brand-surface)",
@@ -547,18 +637,25 @@ export interface FilterOption<T extends string = string> {
 }
 
 /**
+ * One row in a console menu — `FilterSelect`'s options and `RowMenu`'s items
+ * are the same object. CLASSES for every colour: an inline colour beats the
+ * `hover:` rule, and the app-wide green-fill/linen-text hover is the whole
+ * point of the row.
+ */
+const MENU_ITEM =
+  "w-full min-w-0 text-left flex items-center justify-between gap-4 px-4 py-2.5 text-[17px] font-semibold transition-colors hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)]";
+
+/**
  * The WORKING filter dropdown — same silhouette as `FilterButton`, but it opens
  * and it selects. The trigger always shows the current choice, so the row of
  * controls reads as the state of the table rather than as a set of labels.
  *
  * Notes that are choices, not accidents:
  *
- * · `rounded-xl` and a 2px `--brand-control-border` on BOTH states — a control
+ * · `rounded-lg` and a 2px `--brand-control-border` on BOTH states — a control
  *   that changes width when you click it is the exact bug the border rule exists
- *   to prevent. The radius is `rounded-xl` rather than the shape rule's small-
- *   control `rounded-lg` because CLAUDE.md files a SORT control under standard
- *   buttons, and because it sits inches from `Tabs`, which is the home page's
- *   `rounded-xl` filter tab. Two silhouettes in one toolbar is the drift this
+ *   to prevent. The radius is the app's single 8px step, the same one `Tabs`
+ *   carries inches away. Two silhouettes in one toolbar is the drift this
  *   whole pass removed.
  *
  * · When the selection is anything other than `defaultValue` the border and
@@ -574,9 +671,16 @@ export interface FilterOption<T extends string = string> {
  * · Closes on outside `pointerdown` and on Escape, and the trigger keeps focus
  *   so Escape lands somewhere sensible. No portal: unlike `ShareModal` this sits
  *   in ordinary page flow with no transformed ancestor to trap it.
+ *
+ * · `align` says which edge of the trigger the menu hangs from. The menu is
+ *   `w-max`, wider than its trigger, so it has to grow AWAY from the toolbar's
+ *   edge: `end` (the default) for Events' filters, which sit at the right of
+ *   their row; `start` for Attendees', which lead theirs. Left-anchored controls
+ *   with a right-anchored menu put the list over the sidebar, a control's width
+ *   to the left of the thing that opened it.
  */
 export function FilterSelect<T extends string>({
-  label, value, options, onChange, defaultValue,
+  label, value, options, onChange, defaultValue, align = "end",
 }: {
   /** What the control filters — announced to screen readers, never drawn. */
   label: string;
@@ -585,6 +689,8 @@ export function FilterSelect<T extends string>({
   onChange: (value: T) => void;
   /** The "no filter applied" value. Defaults to the first option. */
   defaultValue?: T;
+  /** Which edge of the trigger the menu grows from. See the note above. */
+  align?: "start" | "end";
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -616,7 +722,7 @@ export function FilterSelect<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="nf-chip inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[18px] font-semibold"
+        className="nf-chip inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[18px] font-semibold"
         style={{
           border: `2px solid ${applied ? "var(--brand-green)" : "var(--brand-control-border)"}`,
           backgroundColor: applied
@@ -636,7 +742,10 @@ export function FilterSelect<T extends string>({
         <div
           role="listbox"
           aria-label={label}
-          className="absolute top-full right-0 mt-1.5 py-1.5 rounded-xl shadow-xl min-w-full whitespace-nowrap z-40"
+          /* Options are event titles, so the menu is capped at the viewport
+             (minus the page gutters) and long labels truncate — uncapped +
+             nowrap it ran past a 375px screen. Same recipe as EventStatus. */
+          className={`absolute top-full ${align === "start" ? "left-0" : "right-0"} mt-1.5 py-1.5 rounded-lg shadow-xl min-w-full w-max max-w-[min(360px,calc(100vw-2rem))] z-40`}
           style={{ backgroundColor: "var(--brand-surface)", border: "1px solid var(--brand-nav-border)" }}
         >
           {options.map((o) => {
@@ -648,11 +757,9 @@ export function FilterSelect<T extends string>({
                 role="option"
                 aria-selected={on}
                 onClick={() => { onChange(o.value); setOpen(false); }}
-                className={`w-full text-left flex items-center justify-between gap-4 px-4 py-2.5 text-[17px] font-semibold transition-colors hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)] ${
-                  on ? "text-[var(--brand-green)]" : "text-[var(--brand-text)]"
-                }`}
+                className={`${MENU_ITEM} ${on ? "text-[var(--brand-green)]" : "text-[var(--brand-text)]"}`}
               >
-                {o.label}
+                <span className="truncate">{o.label}</span>
                 {/* Holds its space when unselected so the labels cannot shift. */}
                 <CheckIcon className={`w-4 h-4 shrink-0 ${on ? "" : "invisible"}`} />
               </button>
@@ -695,7 +802,7 @@ type ButtonTone = "accent" | "green" | "outline" | "onInk";
  * `CategoryBadge` sizes follow: never declare a utility twice.
  */
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[18px] whitespace-nowrap transition-colors";
+  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[18px] whitespace-nowrap transition-colors";
 
 /**
  * ⚠️ TONES ARE CLASSES, NOT AN INLINE `style` — every colour, fill and border.
@@ -789,44 +896,191 @@ export function ConsoleButton({
  * app where pointing at a control did nothing at all. This carries the app-wide
  * rule (green fill, linen label) and one definition of the shape.
  *
- * Renders a `<button disabled>` rather than a link when there is nowhere to go
- * yet, for the reason `FilterButton` documents: still announced as a control,
- * obviously not usable.
+ * Three shapes from one control: `href` renders a `Link`, `onClick` a
+ * `<button>`, and neither — or `disabled` — a `<button disabled>`, for the
+ * reason `FilterButton` documents: still announced as a control, obviously not
+ * usable.
+ *
+ * `tone="green"` is the solid fill, for the ONE action a row is there to take —
+ * "Check in" while the Attendees page is running the door. Everything else is
+ * the outline. `whitespace-nowrap` because a 132px actions column wrapped
+ * "Check in" onto two lines, and a two-line button reads as a broken one.
  */
 export function RowAction({
-  children, href, disabled = false, title,
+  children, href, onClick, disabled = false, title, tone = "outline",
 }: {
   children: ReactNode;
   href?: string;
+  onClick?: () => void;
   disabled?: boolean;
   title?: string;
+  tone?: "outline" | "green";
 }) {
   // Colours are classes for the reason BUTTON_TONE records: an inline colour
   // beats `hover:`, which is what left every row control in the console inert.
   const shape =
-    "inline-flex items-center rounded-lg px-3.5 py-1.5 text-[17px] font-semibold transition-colors border-2 border-[var(--brand-control-border)]";
+    "inline-flex items-center rounded-lg px-3.5 py-1.5 text-[17px] font-semibold whitespace-nowrap transition-colors border-2";
 
-  if (disabled || !href) {
+  if (disabled || (!href && !onClick)) {
     return (
       <button
         type="button"
         disabled
         title={title}
-        className={`${shape} cursor-not-allowed text-[var(--brand-hint)] opacity-75`}
+        className={`${shape} border-[var(--brand-control-border)] cursor-not-allowed text-[var(--brand-hint)] opacity-75`}
       >
         {children}
       </button>
     );
   }
 
+  const live =
+    tone === "green"
+      ? "bg-[var(--brand-green)] text-[var(--brand-on-green)] border-[var(--brand-green)] hover:bg-[var(--brand-green-hover)] hover:border-[var(--brand-green-hover)]"
+      : "border-[var(--brand-control-border)] text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)] hover:border-[var(--brand-green)]";
+
+  if (href) {
+    return (
+      <Link href={href} title={title} className={`${shape} ${live}`}>
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      title={title}
-      className={`${shape} text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)] hover:border-[var(--brand-green)]`}
-    >
+    <button type="button" onClick={onClick} title={title} className={`${shape} ${live}`}>
       {children}
-    </Link>
+    </button>
+  );
+}
+
+export interface RowMenuItem {
+  label: string;
+  onSelect?: () => void;
+  /** A destination instead of a handler. `mailto:` / `http(s):` render an `<a>`; anything else a `Link`. */
+  href?: string;
+}
+
+/**
+ * The "⋯" at the end of a table row and the menu under it.
+ *
+ * ⚠️ PORTALLED, unlike `FilterSelect`'s menu, and that is not optional. A row
+ * sits inside `TableScroller`'s `overflow-x-auto`, which makes the scroller's
+ * vertical overflow `auto` too, so a menu positioned inside the row is clipped
+ * at the card's edge and turns into a scrollbar on the last row. The menu is
+ * rendered on `document.body` at a `fixed` position measured from the trigger
+ * on open, and closes on any scroll or resize rather than trying to follow.
+ * The measurement happens in the click handler, not an effect, for the reason
+ * `EventStatus` records.
+ *
+ * No `items` (or `disabled`) is the inert shape the Events rows still wear —
+ * the trigger holds its place and its `title` says why.
+ */
+export function RowMenu({
+  items, disabled = false, title, label = "More actions",
+}: {
+  items?: readonly RowMenuItem[];
+  disabled?: boolean;
+  title?: string;
+  label?: string;
+}) {
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const open = at !== null;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setAt(null);
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !trigger.current?.contains(t)) close();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  const inert = disabled || !items || items.length === 0;
+
+  if (inert) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label={label}
+        title={title}
+        className="p-1.5 rounded-lg cursor-not-allowed text-[var(--brand-hint)] opacity-60"
+      >
+        <MoreIcon className="w-5 h-5" />
+      </button>
+    );
+  }
+
+  const toggle = () => {
+    if (open) return setAt(null);
+    const r = trigger.current?.getBoundingClientRect();
+    if (r) setAt({ top: r.bottom + 6, right: window.innerWidth - r.right });
+  };
+
+  return (
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={toggle}
+        className="p-1.5 rounded-lg transition-colors text-[var(--brand-hint)] hover:bg-[var(--brand-green)] hover:text-[var(--brand-on-green)]"
+      >
+        <MoreIcon className="w-5 h-5" />
+      </button>
+      {at && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menu}
+          role="menu"
+          aria-label={label}
+          className="fixed py-1.5 rounded-lg shadow-xl min-w-[200px] w-max max-w-[min(320px,calc(100vw-2rem))] z-[60]"
+          style={{ top: at.top, right: at.right, backgroundColor: "var(--brand-surface)", border: "1px solid var(--brand-nav-border)" }}
+        >
+          {items.map((it) => {
+            const cls = `${MENU_ITEM} text-[var(--brand-text)]`;
+            const pick = () => { it.onSelect?.(); setAt(null); };
+            if (it.href && /^(mailto:|https?:)/.test(it.href)) {
+              return (
+                <a key={it.label} role="menuitem" href={it.href} onClick={pick} className={cls}>
+                  <span className="truncate">{it.label}</span>
+                </a>
+              );
+            }
+            if (it.href) {
+              return (
+                <Link key={it.label} role="menuitem" href={it.href} onClick={pick} className={cls}>
+                  <span className="truncate">{it.label}</span>
+                </Link>
+              );
+            }
+            return (
+              <button key={it.label} type="button" role="menuitem" onClick={pick} className={cls}>
+                <span className="truncate">{it.label}</span>
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -910,22 +1164,31 @@ function PagerButton({ dir }: { dir: "left" | "right" }) {
   );
 }
 
-/** A thin progress bar — tickets sold, capacity. */
-export function ProgressBar({ pct, muted = false, onInk = false }: { pct: number; muted?: boolean; onInk?: boolean }) {
+/**
+ * A thin progress bar — tickets sold, capacity.
+ *
+ * `hero` is now ONLY a thickness — 8px rather than 6. It was also TERRACOTTA,
+ * because green would have been the same colour as the five solid green blocks
+ * around it and would have stopped reading as a measurement; those blocks went
+ * white on 2026-09-11 and the terracotta went with them (Gautham: the overview
+ * panel is all one green now). The track is `--brand-nav-border`, same as every
+ * other bar in the console.
+ */
+export function ProgressBar({ pct, muted = false, hero = false }: { pct: number; muted?: boolean; hero?: boolean }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <span
       className="block rounded-full overflow-hidden"
       style={{
-        height: onInk ? 8 : 6,
-        backgroundColor: onInk ? INK_FILL : "color-mix(in srgb, var(--brand-nav-border) 45%, transparent)",
+        height: hero ? 8 : 6,
+        backgroundColor: "color-mix(in srgb, var(--brand-nav-border) 45%, transparent)",
       }}
     >
       <span
         className="block h-full rounded-full"
         style={{
           width: `${clamped}%`,
-          backgroundColor: onInk ? ACCENT : muted ? "var(--brand-muted)" : "var(--brand-green)",
+          backgroundColor: muted ? "var(--brand-muted)" : "var(--brand-green)",
         }}
       />
     </span>
@@ -953,7 +1216,7 @@ export function NotBuiltYet({ what, todo }: { what: string; todo: string }) {
           There is no endpoint serving this yet, so nothing is shown rather than a
           figure that would not be true. Set{" "}
           <code
-            className="rounded px-1.5 py-0.5"
+            className="rounded-lg px-1.5 py-0.5"
             style={{ backgroundColor: "color-mix(in srgb, var(--brand-nav-border) 35%, transparent)" }}
           >
             NEXT_PUBLIC_DATA_MODE=dummy

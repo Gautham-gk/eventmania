@@ -4,7 +4,7 @@
 //  "Browse by category" — the two-row rail that sits directly above the footer
 //  on home.
 //
-//  A category tile borrows the EVENT CARD's chassis — same rounded-2xl, same
+//  A category tile borrows the EVENT CARD's chassis — same rounded-lg, same
 //  borderless-at-rest → 2px-border + 6px-lift hover, same aspect-video photo —
 //  but it has NO BODY. The tile IS the photo, with the category's name riding on
 //  a scrim at its bottom edge (Gautham's call: "no white space below the
@@ -143,8 +143,11 @@ const COLUMNS =
 
 // Identical to the event cards', so a tile in this rail asks the browser for the
 // same image widths its neighbours above do.
+// Keyed to the grid's real breakpoints: 1-up below sm (px-4 gutters), 2-up to
+// xl, 4-up from xl. The old string under-asked below 640px (blurry) and
+// over-asked ~2x between 640 and 768.
 const IMAGE_SIZES =
-  '(max-width: 768px) calc(100vw - 96px), (max-width: 1024px) calc(50vw - 72px), (max-width: 1280px) calc(33vw - 60px), calc(25vw - 60px)'
+  '(max-width: 639px) calc(100vw - 32px), (max-width: 1279px) calc(50vw - 34px), calc(25vw - 39px)'
 
 // Where a scroll arrow sits: hard against the page edge (Gautham's call — "as
 // close to the edges of the browser as possible", so they stop covering tiles).
@@ -206,7 +209,7 @@ function CategoryTile({ name, image, alt }: { name: string; image: string; alt: 
       aria-label={`Explore ${name} events`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative block aspect-video rounded-2xl overflow-hidden"
+      className="relative block aspect-video rounded-lg overflow-hidden"
       style={{
         backgroundColor: SURFACE,
         boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)',

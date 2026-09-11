@@ -9,6 +9,137 @@
 
 ---
 
+## 2026-09-11
+
+- **The dashboard's fourth tab is "Profile", and it takes a picture** (Gautham) — "Participant Profile" was renamed (every tab there is already a participant's), and the avatar disc gained an always-visible camera badge that opens `ProfilePictureModal` — the same `CoverImageField` an organiser picks a cover photo with, at `kind="avatar"`: a circular preview, upload or a pasted link, Remove. The picture also replaces the green initial disc in the navbar's account menu. It is stored in `useProfileStore` (localStorage, keyed by email) rather than on `profiles.avatar_url`, which is a `String(512)` with no upload endpoint behind it — the same wall the cover image hit. `image-upload.ts` grew `fileToAvatarDataUrl`: 320px, centre-cropped square, 150 KB.
+- **The Earnings hero is an ordinary stat tile now** (Gautham) — the dark ink panel and its three-sentence explanation of who holds the money and who pays the 2% are gone, leaving four identical `StatTile`s in an even four-column grid. The rate is printed in the table's "Buyer fee 2%" column only; the tiles say who pays it, not what it is. `InkPanel`'s `ink` tone has no caller left.
+- **`/organizer/create`'s three optional extras are authored in DIALOGS now, not inline** (Gautham) — Agenda, FAQ and Cover image each show what has been written so far plus one button that opens the same centred, "Save changes" dialog the event page opens. New `ListEditorModal` (the dialog and the draft, now shared with `EditListModal`, which keeps only the mutation) and `CoverImageModal` (around the unchanged `CoverImageField`); `ListSummary` renders the draft rows in the cards. Both dialogs validate before handing anything back, so the create form no longer checks list rows or the image URL at submit. `CoverImageField.hidePreview` deleted with the card that needed it.
+- **The cover image is now the event's card picture too, not just its hero** (Gautham) — `card-adapters.ts` and `organizer-rows.ts` read `eventImageUrl()` (prefers the real `image_url`, falls back to the picsum placeholder) instead of always drawing the placeholder, so every `<Image>` reading a card's `imageUrl` is `unoptimized` — that URL can now be an organiser's own upload or pasted link, not just a host in `next.config.ts`'s `remotePatterns`. `CoverImageField` also swapped its always-visible "Or paste an image link" field for a second button — "Paste an image link" — that reveals the url input only once clicked (or a link is already set); `/organizer/create` additionally dropped the field's preview box (`hidePreview`).
+- **The Attendees page's controls all do something** (Gautham) — the ticket-type and status dropdowns filter the rows in memory (bound to `?ticket=` / `?status=`, like `?event=`), and every dropdown's menu now hangs under its own trigger instead of over the sidebar (`FilterSelect align`). "Start check-in mode" is brand green and opens a door view — rows sorted by name, "Check in" solid green on each confirmed row — and "Check in" / "Undo" plus the row's "⋯" menu (check in, copy email, email) work in either mode, writing to `lib/checkin-store.ts`: this browser's localStorage, until the check-in endpoint in `TODO.md` §19.3 exists. `ConsoleUI` gained `RowMenu` (portalled) and `RowAction`'s `onClick` / `tone="green"`.
+- **`/dashboard`'s three lists are the home-page card** (Gautham) — My Tickets, My Wishlist and My Events render `EventCardItem` on the home grid (4 across from `xl`) with its hover lift, replacing the dashboard's own row card and ticket panel. The card gained three optional slots — `media` (a ticket's QR code where the photo goes), `lines` (ticket number and seat, an organiser's Draft status) and `action` (Remove / Manage / Join Chat on the "View details" silhouette, `CARD_CTA`) — and exports its grid as `CARD_GRID`; with no slot filled it renders exactly as before.
+- **Start Time and Duration on `/organizer/create` open a round clock on click** (Gautham) — `FormControls.ClockFace`, a Material-style dial: click an hour on the ring, it flips to minutes, click a minute. A solid brand-green face with linen numbers and a linen hand. Start Time (via `DateTimeInput`) shows twelve numbers plus an AM/PM switch or the two-ring 24-hour dial, following the browser locale like the native box it fills; Duration uses the two-ring face as 0–23 hours with "hours" / "minutes" captions, and anything longer is typed. A click used to light one hour/minute segment and open nothing visible; a dropdown list of quarter-hours was tried first the same day and rejected for the clock. Desktop only; a phone keeps its native picker (Start Time) or the typed boxes (Duration).
+- **`/organizer/onboarding` is now `/organizer/create`'s design, whole** (Gautham) — the 1536px column, back-arrow header, 2px-bordered section cards, labels beside their inputs with "(required)" / "(optional)" on every field, the measured width scale, left-packed rows and the shared sticky submit bar. The create page's `Section` and `row()` moved to `FormControls` as `FormSection` / `formRow` so both pages read one definition; the onboarding page's private `FormField` / `inputCls` copies, its "One-time setup" chip and its three-tile trust strip are gone.
+- **`/organizer/create`'s Duration is a clock, not a menu** (Gautham) — hours and minutes typed into one field, arrow-stepped (1h / 5m), capped at four days, replacing a `select` of 23 preset lengths that could not say 100 minutes. Deliberately not a native `type="time"`: that is a wall clock, so it reads "02:30 AM" in 12-hour locales and stops at 23:59. Both boxes can be cleared, so the field gained a `validate()` branch.
+- **`/organizer/create`'s three optional sections sit side by side** (Gautham) — Agenda, FAQ and Cover image are one row of three equal-height cards from `xl` instead of three stacked ones, and their labels sit above their inputs rather than beside them, because a third of the column is half the width an inline label wants. The required sections above are untouched and still one column.
+- **One corner radius for the whole app: `rounded-lg` (8px)** (Gautham) — every button, input, chip, tag, card, panel, dropdown and modal, replacing a role-based scale that ran 6px to 24px. Reverses the `rounded-xl` filter-tab approvals of 2026-08-21 and 2026-08-22; `rounded-md` survives only as the nested step inside a `p-1` track, and `rounded-full` only for elements with no text label.
+- **Date and time fields now wear the app's own calendar and clock** (Gautham) — Chrome's grey picker indicator is hidden across `/organizer/create` and the organiser's edit dialog, and `FormControls.DateTimeInput` draws `EventIcons`' glyphs instead; the create form's Duration menu drops its hand-drawn outline clock for the same `ClockIcon`.
+- **The width scale gained a sixth step, `smd` (320px), and the Organisation Name took it**
+  (Gautham) — `sm` read tight for a name people type in full and `md` was a 75% jump. It is the one
+  step not cut to a measured minimum, so menus stay off it. Organisation Name, Tags and Event
+  Website still share one line from ~1535px, now at 1073 of 1440.
+- **`/organizer/create` asks for the Organisation Name, and `/event/[id]` prints it under "Organised
+  by"** (Gautham) — a required field in Event Basics, between Event Type and Tags. That line had
+  been a hardcoded placeholder since the page was built; it is the fallback now. No column for it
+  yet, so a real-mode create still shows the placeholder (TODO.md §19.12).
+- **Every field on `/organizer/create` says "(required)" or "(optional)"** (Gautham) — category,
+  language, event type, city, duration, capacity, currency and ticket price joined the required set;
+  tags stays optional. Capacity and price grew the empty-box branch their marks needed — `parseInt("")`
+  is NaN, so the old range test waved a cleared box straight through.
+- **The note's placement became a breakpoint rule** (Gautham) — under the label from `lg`, beside it
+  below, where the label is already alone above a full-width input and stacking only spent height.
+- **A required field says "(required)" under its label, and the asterisk is gone** (Gautham) — with
+  it goes the legend under "Create New Event" that existed only to translate the symbol. The note
+  wears the same terracotta brackets as a hint, and a field carrying both reads "(required)
+  (0/1000)". Below the label rather than beside it, because on `/organizer/create` the labels sit
+  beside their inputs and anything added to that line pushes every control right.
+- **`FormField`'s width scale is measured, not chosen, and Event Type now closes the title line**
+  (Gautham) — five steps (132/176/240/420/560), each cut to the longest thing that must fit in it:
+  "Portuguese", "Health & Wellness", and "A$ AUD — Australian Dollar" against "In-Person" across
+  three equal segments. The city menu moved up a step and stopped ellipsising
+  "Thiruvananthapuram, IN", which it had done at every width it ever had. The row's two gaps came
+  down together, 12/40 → 10/32, to find the last of the width. **The title kept its size, so the
+  four fields share a line from ~1535px and Event Type leads the second line below that.**
+
+- **The Events hero's side column is "Notifications", and it has a second group** (Gautham) — the
+  "Needs you today" label, the rule above it and the "cleared items disappear" footnote all went, and
+  **"Unread chats"** now sits below the chores: one card per room with unread activity, linking into
+  `/chat/{id}`. It reads the same `chat-unread-store` map the navbar's chat glow does, so it is live
+  in dummy and real mode alike — and its counts are this session's socket traffic, not a persisted
+  unread history (`TODO.md` §19.1). The chat glyph moved out of `Navbar.tsx` into `ConsoleIcons` so
+  both callers share one drawing.
+
+## 2026-09-09
+
+- **`/organizer/create` asks for a start and a DURATION, not two datetimes** (Gautham) — the day and
+  the clock are now two boxes, and "End Date & Time" is a duration menu (15 minutes to 4 days) behind
+  a clock glyph. The end instant is derived at submit, so `end_date` on the wire is unchanged and the
+  "end must be after start" check is gone with the field that needed it. The edit dialog still shows
+  a real end date, deliberately: a published event's end is moved directly, not re-derived.
+- **`/organizer/create` packs three fields to a line from `lg`** (Gautham) — Title · Category ·
+  Language and Event Type · Tags · Website each share one row; City · Venue Address own a whole line
+  of their own (a nested `row()`), with the address growing into everything the 200px city menu
+  leaves; then Start Date · Start Time · Duration. The title dropped to `md` and the short menus to
+  `xs` to buy the first two lines, and both remaining inline hints moved under their label.
+- **Fixed: an inline `FormField` with no `width` never actually grew** — `lg:grow` sat on the control
+  track inside a field that was itself content-sized, so the venue address came out ~150px wide on a
+  line with 900px spare. The grow moved to the field, which is the flex item the row measures.
+- **Fixed: `/explore`'s price and date filters did nothing in dummy mode** — `dummyEventSearch` dropped `price_min`/`price_max`/`date_from`/`date_to` on the floor, so every filter control on the page rendered, wrote state and changed the URL while the card grid never moved. Fixtures now filter on both, inclusive at each end and day-granular on dates, matching `/event/search`. Geography is still ignored, on purpose.
+- **The Events overview panel is brand white on a green border** (Gautham) — it moved off `--brand-ink`, its five stat tiles and "needs you" cards became solid green blocks with linen type on a new fixed `--brand-console-green`, its "Next up" pill became an "Upcoming event" section heading on the home page's recipe, and it lost the event photograph, which cannot survive a white ground. The Earnings hero stays ink.
+- **Reversed: the console's Events table opens on Live again** (Gautham) — **Live** is the first tab
+  and the default, **All** sits immediately to its right, and the rest of the order is unchanged
+  (`CONSOLE_TABS` order + the page's `useState`). This undoes yesterday's swap below.
+
+## 2026-09-08
+
+- **`/organizer/create` rebuilt on two columns, and the cover image can be UPLOADED** (Gautham). The
+  form was a 768px single column of full-width inputs; fields now pair up inside each section and
+  the cover photo and the two submits moved into a sticky rail, so Publish is on screen the whole
+  way down. Nothing was removed and no section changed its order. Required fields carry a terracotta
+  superscript `*`, every hint is terracotta in brackets, and every menu is alphabetical ("Other"
+  last). The new `CoverImageField` — preview, upload, or a pasted link — is **shared with the edit
+  dialog**; the upload is browser-side (downscaled to a `data:` URL) because there is still no file
+  storage, so it stays inside the same `dummy`-mode gate as the rest of the authored extras.
+- **`/explore` filters on a price range** — `price_min` / `price_max`, read from the URL, one Active
+  chip. **One range, three controls** (Gautham): a dual slider, Min/Max fields and preset chips, all
+  writing the same two numbers, so moving any one moves the others. **The Free-events toggle is
+  gone** — Free is simply the preset 0 → 0, which removes the second control that owned `price_max`;
+  `?free=true` still resolves to it. The event service gained `price_min`, **and its search cache now
+  keys on every narrowing parameter** — it keyed on none of category, format, the dates or the price,
+  so a filtered search could be served a previous unfiltered one for five minutes. Labels are ₹
+  because India is the launch market, and amounts are compared as bare numbers across currencies —
+  `TODO.md` §25.
+- **The organiser dialogs lost their accent tints and their long copy** (Gautham) — the consequence blocks in Cancel / Publish / Duplicate / Edit details were 10–12% green or terracotta washes; they now sit on the panel's own brand white / brand dark with a 1px `--brand-border`, and the accents are confined to the buttons. Every description in those four was cut to its shortest true form at the same time.
+- **The status select updates the page again in dummy mode** — `data-source`'s dummy reads now hand out copies, so React Query's deep-equality structural sharing can see an in-place fixture edit. The 2026-09-01 `{ ...target }` fix was comparing against an object it had already mutated.
+- **The navbar's organiser item is "Dashboard" again, and the console's Events table opens on All**
+  (Gautham). The label reverted yesterday's rename to "Organiser Console" — the Organisers dropdown
+  around it already says whose dashboard it is. The table led with Live and defaulted to it, so an
+  organiser with nothing in the next 30 days landed on an empty table; **All** is now the first tab
+  and the default (`CONSOLE_TABS` order + the page's `useState`).
+
+## 2026-09-07
+
+- **The console's Dashboard section is gone; Events absorbed it** (Gautham). The two rendered the
+  same rows off the same `toConsoleRows`, one truncated to five with a "See all events →" link. The
+  Dashboard's overview band — the ink "next up" hero with its "Needs you today" column, and the five
+  portfolio tiles — now opens `/organizer/events`, which is the console's landing section and wears
+  the greeting as its `h1`. The rail is three items; `/organizer` is a redirect
+  (`app/organizer/page.tsx`, outside the `(console)` group), and the navbar's "Dashboard" item is
+  now "Organiser Console" pointing straight at `/organizer/events`. `DashboardIcon` deleted.
+
+- **Home on a phone: photo-first hero, dropdown filters, touch pass** (Biswajith). Below `lg` the
+  hero panel now precedes the spoken exchange; the two filter-tab rows became one `FilterTabs`
+  component that renders the row only at `lg+` with a mouse and a native `<select>` in the tab's
+  silhouette below that or on any touch-primary device. Touch across the app: navbar menus guard
+  their hover handlers with `hoverCapable()` (a tap used to open and close them in one go) and close
+  on an outside tap; form controls render at 16px under a coarse pointer (iOS focus-zoom); small
+  controls grow to 40–44px under a finger with negative margins so the mouse render is unchanged;
+  hover tooltips hide where nothing hovers; `touch-action: manipulation` and no tap highlight on
+  every control; `dvh` on the console rail and dialog panels. Desktop renders of `/`, `/explore` and
+  `/event/[id]` are unchanged; sweep clean at 320–1440.
+
+## 2026-09-05
+
+- **Whole-site responsive pass** — every route now measures clean at the nine widths, and the
+  sweep is a repo script (`apps/web/scripts/responsive-sweep.mjs`). Fixed: the organiser console
+  rendered as a ~0px column below 1024px (its mobile nav strip was a flex *sibling* of the content,
+  not above it); the navbar's search input collapsed to ~20px at 1024–1279 (the box is now elastic
+  between 170 and 410); Expiry + CVV overflowed the checkout sidebar at 1024; chip rows, sticky-bar
+  CTAs, dialog rows and form button pairs that overflowed or clipped at 320–375; hover-only card
+  controls, tags, and navbar dropdowns now work on touch (coarse-pointer reveal, tap-to-toggle);
+  `100vh` → `100dvh` on the chat room, mobile menu and chat widget; `sizes` on event/category images
+  keyed to the real grid breakpoints. Desktop renders of `/`, `/explore` and `/event/[id]` are
+  unchanged except the 1024–1279 search box.
+
 ## 2026-09-03
 
 - **The project instructions are split into a standing prompt and a handover doc** (Gautham) — the

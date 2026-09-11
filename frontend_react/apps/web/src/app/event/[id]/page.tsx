@@ -73,13 +73,24 @@ const GREEN = "var(--brand-green)";
  * changes it. That is only possible while ONE string answers for both, which is
  * why it lives here rather than at either call site.
  *
- * It is a stand-in: there is no organiser lookup on this page and no
- * organisation name on the event. When that lands it is the ORGANISATION's name
- * that belongs here (Gautham, 2026-09-01) — not the signed-in person's — and
- * "Verified · 40+ events" in `BookingCard` / `OrganiserEventCard` has to become
- * real at the same time. Logged as TODO.md §1.
+ * It is a FALLBACK as of 2026-09-11, not the only answer: `/organizer/create`
+ * now asks for the organisation's name and an event that carries one prints it
+ * instead (`organiserNameOf` below). This still shows for every event written
+ * before that field existed, and for every real-mode event until the column
+ * lands — there is no organiser lookup on this page either way.
+ *
+ * ⚠️ It is the ORGANISATION's name that belongs here (Gautham, 2026-09-01), not
+ * the signed-in person's, and "Verified · 40+ events" in `BookingCard` /
+ * `OrganiserEventCard` has to become real at the same time. Logged as TODO.md §1.
  */
 const ORGANISER_NAME = "NewFind Collective";
+
+/** The organisation to print under "Organised by". Blank and whitespace-only
+ *  both fall through to the placeholder — an empty heading is worse than a
+ *  stand-in. */
+function organiserNameOf(event: { organization_name?: string }): string {
+  return event.organization_name?.trim() || ORGANISER_NAME;
+}
 
 function fmt(iso: string, opts: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleDateString("en-US", opts);
@@ -473,7 +484,7 @@ export default function EventDetailPage({
               their attendee list is the opposite of helpful. */}
           <div className={`order-1 lg:order-2 ${organiserView ? "" : DIMMED}`}>
             {organiserView ? (
-              <OrganiserEventCard event={event} organiserName={ORGANISER_NAME} />
+              <OrganiserEventCard event={event} organiserName={organiserNameOf(event)} />
             ) : (
               <BookingCard
                 cancelled={cancelled}
@@ -481,7 +492,7 @@ export default function EventDetailPage({
                 dateLabel={fmt(event.start_date, { weekday: "long", month: "short", day: "numeric" })}
                 timeLabel={fmtTime(event.start_date)}
                 location={location}
-                organizer={ORGANISER_NAME}
+                organizer={organiserNameOf(event)}
                 price={event.price}
                 currency={event.currency}
                 offerName={event.offer_name}
@@ -647,9 +658,10 @@ function BookingCard({
   const soldOut = left <= 0;
   return (
     <DetailCardShell>
-      {/* ⚠️ The name arrives as `ORGANISER_NAME` and the trust line is hardcoded
-          right here — there is no organiser lookup on this page. Logged as
-          TODO.md §1; "Verified" cannot ship to real users as-is.
+      {/* ⚠️ The name comes from `organiserNameOf` — the event's own organisation
+          name, or `ORGANISER_NAME` when it has none. The TRUST LINE below is
+          still hardcoded and there is still no organiser lookup on this page.
+          Logged as TODO.md §1; "Verified" cannot ship to real users as-is.
 
           ⚠️ `OrganiserEventCard` renders this SAME header, deliberately. Change
           the eyebrow or the subline in one and change it in the other. */}
@@ -672,8 +684,11 @@ function BookingCard({
           <DetailLine icon={<LocationPinIcon color={GREEN} className={DETAIL_ICON} />} text={location} />
         </div>
 
-        {/* Social proof + scarcity. */}
-        <div className="flex items-center justify-between gap-3 mt-7">
+        {/* Social proof + scarcity. flex-wrap: both chips are nowrap TAG_SHAPE,
+            and together they outgrow the stacked card on a 320–375px phone —
+            the shell is overflow-hidden, so without it the second chip was
+            silently clipped. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-7">
           <DetailPeopleChip count={going} label="going" />
           {/* ⚠️ Hidden once registration is closed. The card is NOT dimmed in
               that state (unlike a cancelled one), so "12 spots left" would sit

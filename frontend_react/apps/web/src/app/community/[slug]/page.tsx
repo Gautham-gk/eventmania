@@ -67,7 +67,7 @@ export default function CommunityDetailPage({ params }: { params: Promise<{ slug
           <p className="text-[18px] font-semibold" style={{ color: HINT }}>Community not found</p>
           <button
             onClick={() => router.push("/communities")}
-            className="text-sm font-semibold px-4 py-2 rounded-xl text-[var(--brand-on-green)]"
+            className="text-sm font-semibold px-4 py-2 rounded-lg text-[var(--brand-on-green)]"
             style={{ backgroundColor: GREEN }}
           >
             Explore Communities

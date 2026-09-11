@@ -259,7 +259,7 @@ export function EventStatusChip({
           // Colours as CLASSES, not an inline style — an inline colour outranks
           // the `hover:` rule and the darker fill would never appear. Fourth
           // time this has bitten the repo; see CLAUDE.md's hover section.
-          className={`${HERO_CONTROL} shrink-0 rounded-xl px-4 py-[11px]
+          className={`${HERO_CONTROL} shrink-0 rounded-lg px-4 py-[11px]
                       bg-[var(--brand-green)] text-[var(--brand-on-green)]
                       hover:bg-[var(--brand-green-hover)]`}
           style={{ border: HERO_EDGE }}
@@ -301,7 +301,7 @@ function FixedStatusChip({ state }: { state: EventLifecycle }) {
         </ActionLabel>
       )}
       <span
-        className={`${HERO_CONTROL} inline-flex items-center rounded-xl px-3.5 py-[11px]`}
+        className={`${HERO_CONTROL} inline-flex items-center rounded-lg px-3.5 py-[11px]`}
         style={{
           color: hovered ? "var(--brand-green)" : "var(--brand-hint)",
           backgroundColor: "var(--brand-surface)",
@@ -446,7 +446,7 @@ function StatusSelect({
           setHovered(true);
         }}
         onMouseLeave={() => setHovered(false)}
-        className={`${HERO_CONTROL} inline-flex items-center gap-2 rounded-xl px-3.5 py-[11px] disabled:opacity-60`}
+        className={`${HERO_CONTROL} inline-flex items-center gap-2 rounded-lg px-3.5 py-[11px] disabled:opacity-60`}
         style={{
           color: lit ? "var(--brand-green)" : "var(--brand-hint)",
           backgroundColor: "var(--brand-surface)",
@@ -469,10 +469,10 @@ function StatusSelect({
           // pinned to the right gutter, and a menu this wide anchored right runs
           // off the hero's `overflow-hidden` edge at 1024px and below.
           // `px-1.5` insets the rows so the selected one's green fill sits
-          // INSIDE the menu's `rounded-xl` corners instead of squaring them off;
-          // the row's own `rounded-lg` nests one step tighter, which is
+          // INSIDE the menu's `rounded-lg` corners instead of squaring them off;
+          // the row's own `rounded-md` nests one step tighter, which is
           // CLAUDE.md's rule for an item inside a rounded track.
-          className="absolute top-full left-0 mt-1.5 p-1.5 rounded-xl shadow-xl w-[min(340px,80vw)] z-40"
+          className="absolute top-full left-0 mt-1.5 p-1.5 rounded-lg shadow-xl w-[min(340px,80vw)] z-40"
           style={{
             backgroundColor: "var(--brand-surface)",
             border: "1px solid var(--brand-nav-border)",
@@ -490,7 +490,7 @@ function StatusSelect({
                 aria-selected={on}
                 disabled={blocked}
                 onClick={() => choose(option)}
-                className={`group block w-full text-left rounded-lg px-4 py-2.5
+                className={`group block w-full text-left rounded-md px-4 py-2.5
                             ${blocked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             ${on
                               ? "bg-[var(--brand-green)] text-[var(--brand-on-green)]"
@@ -517,8 +517,13 @@ function StatusSelect({
 
                     The description INHERITS the row's colour rather than setting
                     its own, so it goes linen with the label on the green fill
-                    instead of staying dark on green. */}
-                <span className="hidden group-hover:block text-[15px] leading-snug opacity-80">
+                    instead of staying dark on green.
+
+                    On a device with NO hover (`hover: none`) it is simply always
+                    shown: a finger cannot hover, so the menu would otherwise be
+                    four bare words, and a row that grows under the finger that
+                    tapped it is worse than a taller menu. */}
+                <span className="hidden group-hover:block [@media(hover:none)]:block text-[15px] leading-snug opacity-80">
                   {reason ?? COPY[option].organiser}
                 </span>
               </button>

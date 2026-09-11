@@ -61,10 +61,12 @@ import {
   type EventType,
 } from "@/lib/event-options";
 import { formatPrice } from "@/lib/currency";
-import { FormField, inputCls } from "@/components/FormControls";
+import { IMAGE_SRC_ERROR, isImageSrc } from "@/lib/image-upload";
+import { DateTimeInput, FormField, inputCls } from "@/components/FormControls";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import { ModalShell } from "@/components/ModalShell";
-
-const GREEN = "var(--brand-green)";
+import { CoverImageField } from "@/components/organizer/CoverImageField";
+import { AudienceChip } from "@/components/organizer/AudienceChip";
 
 /** Real cities only — "Online" is the pseudo-city the picker uses for a format,
  *  and a venue is never in it. Format comes from the event's own `event_type`. */
@@ -117,7 +119,7 @@ function ReadOnly({ label, value, why }: { label: string; value: string; why: st
   return (
     <FormField label={label} hint="cannot be changed">
       <div
-        className="w-full px-4 py-3 rounded-xl text-sm font-medium"
+        className="w-full px-4 py-3 rounded-lg text-sm font-medium"
         style={{
           border: "1px solid var(--brand-border)",
           backgroundColor: "color-mix(in srgb, var(--brand-hint) 6%, transparent)",
@@ -363,8 +365,9 @@ export function EditEventModal({
     // Same test the create form applies to this field, worded the same way.
     if (eventWebsite.trim() && !/^https?:\/\/.+/.test(eventWebsite.trim()))
       errors.eventWebsite = "Website must start with http:// or https://";
-    if (imageUrl.trim() && !/^https?:\/\/\S+$/i.test(imageUrl.trim()))
-      errors.imageUrl = "Enter a full image URL starting with http:// or https://";
+    // The create form's test, and now literally its function — an uploaded
+    // cover is a `data:` URL, which an http(s)-only test would reject.
+    if (imageUrl.trim() && !isImageSrc(imageUrl)) errors.imageUrl = IMAGE_SRC_ERROR;
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -396,7 +399,7 @@ export function EditEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3.5 rounded-2xl text-[16px] font-bold transition-colors"
+            className="flex-1 py-3.5 rounded-lg text-[16px] font-bold transition-colors"
             style={{ border: "2px solid var(--brand-control-border)", color: "var(--brand-text)" }}
           >
             Discard
@@ -405,7 +408,7 @@ export function EditEventModal({
             type="button"
             onClick={submit}
             disabled={save.isPending}
-            className="flex-[2] py-3.5 rounded-2xl text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
+            className="flex-[2] py-3.5 rounded-lg text-[16px] font-bold text-[var(--brand-on-green)] transition-colors disabled:opacity-60"
             style={{ backgroundColor: "var(--brand-green)" }}
           >
             {save.isPending ? "Saving…" : "Save changes"}
@@ -449,22 +452,13 @@ export function EditEventModal({
               "Where" group below — see `needsVenue` / `needsLink`. Changing it
               also trips the postponement notice. */}
           <FormField label="Event Type">
-            <div className="flex rounded-xl overflow-hidden" style={{ border: "2px solid var(--brand-control-border)" }}>
-              {EVENT_TYPES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setEventType(t)}
-                  className="flex-1 py-3 text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: eventType === t ? GREEN : "var(--brand-surface)",
-                    color: eventType === t ? "var(--brand-on-green)" : "var(--brand-text)",
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={EVENT_TYPES}
+              value={eventType}
+              onChange={setEventType}
+              ariaLabel="Event Type"
+              fill
+            />
           </FormField>
 
           <FormField label={`About this event (${description.length}/${descMax})`} error={fieldErrors.description}>
@@ -480,24 +474,14 @@ export function EditEventModal({
 
           <FormField label="Target Audience" hint="Select all that apply">
             <div className="flex flex-wrap gap-2">
-              {audienceOptions.map((a) => {
-                const selected = targetAudience.includes(a);
-                return (
-                  <button
-                    key={a}
-                    type="button"
-                    onClick={() => toggleAudience(a)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"
-                    style={{
-                      backgroundColor: selected ? GREEN : "var(--brand-surface)",
-                      color: selected ? "var(--brand-on-green)" : "var(--brand-text)",
-                      border: `2px solid ${selected ? GREEN : "var(--brand-control-border)"}`,
-                    }}
-                  >
-                    {a}
-                  </button>
-                );
-              })}
+              {audienceOptions.map((a) => (
+                <AudienceChip
+                  key={a}
+                  label={a}
+                  selected={targetAudience.includes(a)}
+                  onToggle={() => toggleAudience(a)}
+                />
+              ))}
             </div>
           </FormField>
 
@@ -525,20 +509,20 @@ export function EditEventModal({
         <Group title="When">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <FormField label="Start Date & Time" error={fieldErrors.startDate}>
-              <input
+              <DateTimeInput
                 type="datetime-local"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className={inputCls(!!fieldErrors.startDate)}
+                onChange={setStartDate}
+                hasError={!!fieldErrors.startDate}
               />
             </FormField>
             <FormField label="End Date & Time" error={fieldErrors.endDate}>
-              <input
+              <DateTimeInput
                 type="datetime-local"
                 value={endDate}
                 min={startDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={inputCls(!!fieldErrors.endDate)}
+                onChange={setEndDate}
+                hasError={!!fieldErrors.endDate}
               />
             </FormField>
           </div>
@@ -592,9 +576,8 @@ export function EditEventModal({
             header before rewording it. */}
         {postponing && (
           <Notice>
-            <b>This counts as postponing the event.</b> Anyone already holding a ticket booked the
-            date, time and place you are changing — and nothing tells them yet, so you will need to
-            contact them yourself.
+            <b>This counts as postponing the event.</b> Ticket holders booked the old details and
+            are not told — contact them yourself.
           </Notice>
         )}
 
@@ -607,7 +590,7 @@ export function EditEventModal({
             <ReadOnly
               label="Ticket price"
               value={`${formatPrice(priceNum, event.currency)} ${event.currency ?? "INR"}`}
-              why="The price and currency are what every ticket, receipt and earnings total for this event were written in, so they are fixed once the event is created."
+              why="Every ticket, receipt and earnings total is written in it, so it is fixed once the event is created."
             />
 
             <FormField
@@ -656,76 +639,56 @@ export function EditEventModal({
             {cutsBelowSold ? (
               <>
                 <b>
-                  You are allowing {capacityNum} {capacityNum === 1 ? "place" : "places"} on an event
-                  that has sold {sold}.
+                  {capacityNum} {capacityNum === 1 ? "place" : "places"} on an event that has sold{" "}
+                  {sold}.
                 </b>{" "}
-                Nothing voids the extra tickets and nobody is told — those people still hold a valid
-                ticket, and you will need to contact them yourself.
+                The extra tickets stay valid and nobody is told — contact them yourself.
               </>
             ) : (
               <>
-                <b>Changing the capacity does not tell anyone.</b> It only changes how many places
-                remain on sale from now on.
+                <b>Changing the capacity tells nobody.</b> It only changes the places left on sale.
               </>
             )}
           </Notice>
         )}
 
+        {/* ⚠️ THE SAME CONTROL `/organizer/create` USES — preview, upload and
+            pasted link all live in `CoverImageField`. An organiser who can
+            upload a picture when they create the event and only paste a link
+            when they edit it has lost the feature, not just the button. */}
         <Group title="Cover image">
-          <FormField
-            label="Image URL"
-            hint={extrasOff ? "needs the backend" : "leave blank for the default photo"}
+          <CoverImageField
+            value={imageUrl}
+            onChange={setImageUrl}
             error={fieldErrors.imageUrl}
-          >
-            <input
-              type="url"
-              value={imageUrl}
-              disabled={extrasOff}
-              title={extrasOff ? EXTRAS_HINT : undefined}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://…"
-              className={`${inputCls(!!fieldErrors.imageUrl)} ${extrasOff ? "opacity-60 cursor-not-allowed" : ""}`}
-            />
-          </FormField>
-
-          {/* ⚠️ A PLAIN <img>, and it must stay one. `next/image` refuses a host
-              that is not in next.config.ts's `remotePatterns`, and the whole
-              point of this field is that an organiser types their own — so the
-              optimised component would throw on exactly the input this is for.
-              The event hero renders it the same way, for the same reason. */}
-          {imageUrl.trim() && !fieldErrors.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl.trim()}
-              alt=""
-              className="w-full aspect-video object-cover rounded-xl"
-              style={{ border: "1px solid var(--brand-border)" }}
-            />
-          )}
-
-          <p className="text-[15px] leading-relaxed text-[var(--brand-hint)]">
-            There is no upload yet — paste a link to an image you already host. It replaces the
-            photo at the top of this page; the event cards keep their own picture.
-          </p>
+            disabled={extrasOff}
+            disabledTitle={EXTRAS_HINT}
+            note="It replaces the photo at the top of this page and the one on the event cards."
+          />
         </Group>
 
         {error && (
-          <p className="text-sm px-4 py-3 rounded-xl bg-red-50 text-red-600 border border-red-200">{error}</p>
+          <p className="text-sm px-4 py-3 rounded-lg bg-red-50 text-red-600 border border-red-200">{error}</p>
         )}
       </div>
     </ModalShell>
   );
 }
 
-/** The terracotta-tinted consequence block. Three of them can appear at once. */
+/**
+ * The consequence block. Three of them can appear at once.
+ *
+ * ⚠️ IT CARRIES A BORDER, NOT A FILL (Gautham, 2026-09-08). It used to be a 12%
+ * terracotta wash; the dialog bodies are brand white / brand dark now, with no
+ * accent tint anywhere but the buttons. The sibling blocks in
+ * `CancelEventModal`, `PublishEventModal` and `DuplicateEventModal` were moved
+ * with it — **do not tint one of the four back on its own.**
+ */
 function Notice({ children }: { children: React.ReactNode }) {
   return (
     <p
-      className="text-[15px] leading-relaxed rounded-xl px-4 py-3"
-      style={{
-        backgroundColor: "color-mix(in srgb, var(--brand-terracotta) 12%, transparent)",
-        color: "var(--brand-text)",
-      }}
+      className="text-[15px] leading-relaxed rounded-lg px-4 py-3"
+      style={{ border: "1px solid var(--brand-border)", color: "var(--brand-text)" }}
     >
       {children}
     </p>
